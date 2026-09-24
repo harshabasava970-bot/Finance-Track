@@ -19,13 +19,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findByIdAndUserId(Long id, Long userId);
 
+    // Uses CAST to avoid PostgreSQL bytea issue with LOWER()
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId " +
            "AND (:type IS NULL OR t.type = :type) " +
            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
            "AND (:endDate IS NULL OR t.transactionDate <= :endDate) " +
-           "AND (:search IS NULL OR LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(t.category.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "AND (:search IS NULL OR LOWER(CAST(t.description AS string)) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(CAST(t.category.name AS string)) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Transaction> findFilteredTransactions(
             @Param("userId") Long userId,
             @Param("type") Category.TransactionType type,
@@ -40,8 +41,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
            "AND (:endDate IS NULL OR t.transactionDate <= :endDate) " +
-           "AND (:search IS NULL OR LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(t.category.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "AND (:search IS NULL OR LOWER(CAST(t.description AS string)) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(CAST(t.category.name AS string)) LIKE LOWER(CONCAT('%', :search, '%')))")
     List<Transaction> findFilteredTransactionsAll(
             @Param("userId") Long userId,
             @Param("type") Category.TransactionType type,
