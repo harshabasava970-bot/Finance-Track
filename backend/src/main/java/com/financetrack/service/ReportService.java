@@ -25,7 +25,7 @@ public class ReportService {
 
     public ReportSummaryResponse getSummary(Long userId, LocalDate startDate, LocalDate endDate) {
         List<TransactionResponse> transactions = transactionRepository
-                .findFilteredTransactionsAll(userId, null, null, startDate, endDate, null)
+                .findFilteredTransactionsAll(userId, null, null, startDate, endDate, null, null)
                 .stream().map(TransactionResponse::from).toList();
 
         BigDecimal totalIncome = transactions.stream()
@@ -74,7 +74,8 @@ public class ReportService {
                                      String search) throws IOException {
         List<TransactionResponse> transactions = transactionRepository
                 .findFilteredTransactionsAll(userId, type, categoryId, startDate, endDate,
-                        (search != null && !search.isBlank()) ? search : null)
+                        (search != null && !search.isBlank()) ? search : null,
+                        (search != null && !search.isBlank()) ? "%" + search.toLowerCase() + "%" : null)
                 .stream().map(TransactionResponse::from).toList();
 
         StringWriter sw = new StringWriter();

@@ -47,10 +47,12 @@ public class TransactionService {
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
+        String searchParam = (search != null && !search.isBlank()) ? search : null;
+        String searchPattern = searchParam != null ? "%" + searchParam.toLowerCase() + "%" : null;
+
         Page<Transaction> transactions = transactionRepository.findFilteredTransactions(
                 userId, type, categoryId, startDate, endDate,
-                (search != null && !search.isBlank()) ? search : null,
-                pageable);
+                searchParam, searchPattern, pageable);
 
         List<TransactionResponse> content = transactions.getContent()
                 .stream().map(TransactionResponse::from).toList();
@@ -130,9 +132,11 @@ public class TransactionService {
             LocalDate startDate,
             LocalDate endDate,
             String search) {
+        String searchParam = (search != null && !search.isBlank()) ? search : null;
+        String searchPattern = searchParam != null ? "%" + searchParam.toLowerCase() + "%" : null;
         return transactionRepository.findFilteredTransactionsAll(
                 userId, type, categoryId, startDate, endDate,
-                (search != null && !search.isBlank()) ? search : null)
+                searchParam, searchPattern)
                 .stream().map(TransactionResponse::from).toList();
     }
 }

@@ -34,7 +34,7 @@ public class DashboardService {
         BigDecimal savings = balance.compareTo(BigDecimal.ZERO) > 0 ? balance : BigDecimal.ZERO;
 
         long transactionCount = transactionRepository.findFilteredTransactionsAll(
-                userId, null, null, startDate, endDate, null).size();
+                userId, null, null, startDate, endDate, null, null).size();
 
         return DashboardSummaryResponse.builder()
                 .totalIncome(totalIncome)

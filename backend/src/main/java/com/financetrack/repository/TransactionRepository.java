@@ -19,14 +19,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findByIdAndUserId(Long id, Long userId);
 
-    // Uses CAST to avoid PostgreSQL bytea issue with LOWER()
+    // search param must be passed as lowercase from the service layer
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId " +
            "AND (:type IS NULL OR t.type = :type) " +
            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
            "AND (:endDate IS NULL OR t.transactionDate <= :endDate) " +
-           "AND (:search IS NULL OR LOWER(CAST(t.description AS string)) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(CAST(t.category.name AS string)) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "AND (:search IS NULL OR t.description LIKE :searchPattern " +
+           "     OR t.category.name LIKE :searchPattern)")
     Page<Transaction> findFilteredTransactions(
             @Param("userId") Long userId,
             @Param("type") Category.TransactionType type,
@@ -34,6 +34,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             Pageable pageable);
 
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId " +
@@ -41,15 +42,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
            "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
            "AND (:endDate IS NULL OR t.transactionDate <= :endDate) " +
-           "AND (:search IS NULL OR LOWER(CAST(t.description AS string)) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(CAST(t.category.name AS string)) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "AND (:search IS NULL OR t.description LIKE :searchPattern " +
+           "     OR t.category.name LIKE :searchPattern)")
     List<Transaction> findFilteredTransactionsAll(
             @Param("userId") Long userId,
             @Param("type") Category.TransactionType type,
             @Param("categoryId") Long categoryId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
-            @Param("search") String search);
+            @Param("search") String search,
+            @Param("searchPattern") String searchPattern);
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.user.id = :userId AND t.type = :type")
     BigDecimal sumByUserIdAndType(@Param("userId") Long userId, @Param("type") Category.TransactionType type);
