@@ -41,8 +41,8 @@ A complete full-stack personal finance management web application built with **R
 
 ### Deployment
 - **Frontend**: Vercel
-- **Backend**: Railway.app
-- **Database**: Railway MySQL
+- **Backend**: Render.com (Docker)
+- **Database**: Render PostgreSQL or PlanetScale (free MySQL)
 
 ---
 
