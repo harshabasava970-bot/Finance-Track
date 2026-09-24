@@ -23,8 +23,16 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        initializeSystemCategories();
-        initializeAdminUser();
+        try {
+            initializeSystemCategories();
+        } catch (Exception e) {
+            log.error("Failed to initialize system categories: {}", e.getMessage());
+        }
+        try {
+            initializeAdminUser();
+        } catch (Exception e) {
+            log.error("Failed to initialize admin user: {}", e.getMessage());
+        }
     }
 
     private void initializeSystemCategories() {

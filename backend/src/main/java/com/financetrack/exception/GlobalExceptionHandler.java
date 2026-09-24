@@ -77,8 +77,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        log.error("Unexpected error: ", ex);
+        log.error("Unexpected error: {}", ex.getMessage(), ex);
+        String message = "An unexpected error occurred. Please try again.";
+        // In non-production, expose the message for debugging
+        if (ex.getMessage() != null && ex.getMessage().length() < 200) {
+            message = ex.getMessage();
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("An unexpected error occurred. Please try again."));
+                .body(ApiResponse.error(message));
     }
 }
