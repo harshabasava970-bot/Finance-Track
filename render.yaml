@@ -1,9 +1,10 @@
 services:
   - type: web
     name: financetrack-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: java
+    rootDir: backend
+    buildCommand: mvn package -DskipTests
+    startCommand: java -Dserver.port=$PORT -jar target/financetrack-backend-1.0.0.jar
     plan: free
     envVars:
       - key: DATABASE_URL
@@ -11,6 +12,8 @@ services:
       - key: DATABASE_USERNAME
         sync: false
       - key: DATABASE_PASSWORD
+        sync: false
+      - key: DB_DRIVER
         sync: false
       - key: JWT_SECRET
         sync: false
