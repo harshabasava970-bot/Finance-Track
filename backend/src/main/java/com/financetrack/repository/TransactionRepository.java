@@ -64,19 +64,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
            "WHERE t.user.id = :userId AND t.type = 'EXPENSE' " +
            "AND t.category.id = :categoryId " +
-           "AND MONTH(t.transactionDate) = :month AND YEAR(t.transactionDate) = :year")
+           "AND EXTRACT(MONTH FROM t.transactionDate) = :month " +
+           "AND EXTRACT(YEAR FROM t.transactionDate) = :year")
     BigDecimal sumExpenseByUserCategoryMonthYear(
             @Param("userId") Long userId,
             @Param("categoryId") Long categoryId,
             @Param("month") int month,
             @Param("year") int year);
 
-    @Query("SELECT YEAR(t.transactionDate) as year, MONTH(t.transactionDate) as month, " +
+    @Query("SELECT EXTRACT(YEAR FROM t.transactionDate) as year, " +
+           "EXTRACT(MONTH FROM t.transactionDate) as month, " +
            "t.type as type, COALESCE(SUM(t.amount), 0) as total " +
            "FROM Transaction t WHERE t.user.id = :userId " +
            "AND t.transactionDate >= :startDate AND t.transactionDate <= :endDate " +
-           "GROUP BY YEAR(t.transactionDate), MONTH(t.transactionDate), t.type " +
-           "ORDER BY YEAR(t.transactionDate), MONTH(t.transactionDate)")
+           "GROUP BY EXTRACT(YEAR FROM t.transactionDate), EXTRACT(MONTH FROM t.transactionDate), t.type " +
+           "ORDER BY EXTRACT(YEAR FROM t.transactionDate), EXTRACT(MONTH FROM t.transactionDate)")
     List<Object[]> findMonthlyTotals(
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
