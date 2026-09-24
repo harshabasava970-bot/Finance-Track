@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://financetrack-backend-it64.onrender.com';
+// Backend URL - update this if your Render service URL changes
+const BASE_URL = 'https://financetrack-backend-it64.onrender.com';
 
 const api = axios.create({
   baseURL: BASE_URL,
