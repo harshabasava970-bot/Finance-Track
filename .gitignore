@@ -1,0 +1,30 @@
+# Java / Maven
+backend/target/
+backend/*.jar
+*.class
+*.log
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment files
+.env
+backend/.env
+frontend/.env
+
+# Node / npm
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spring Boot
+HELP.md
