@@ -97,4 +97,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("endDate") LocalDate endDate);
 
     List<Transaction> findByUserIdOrderByTransactionDateDesc(Long userId);
+
+    @Query("SELECT COUNT(t) FROM Transaction t WHERE t.user.id = :userId " +
+           "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
+           "AND (:endDate IS NULL OR t.transactionDate <= :endDate)")
+    long countByUserIdAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }
