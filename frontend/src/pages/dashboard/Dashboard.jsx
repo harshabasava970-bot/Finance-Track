@@ -65,20 +65,29 @@ export default function Dashboard() {
       if (range.endDate) params.endDate = range.endDate;
 
       const now = new Date();
-      const [sumRes, monRes, catRes, budRes, txnRes] = await Promise.all([
+
+      // Load each API independently — one failure won't crash the whole dashboard
+      const results = await Promise.allSettled([
         getDashboardSummary(params),
         getMonthlyData(getDateRange('last_6_months')),
         getCategorySpending(params),
         getBudgetAnalysis({ month: now.getMonth() + 1, year: now.getFullYear() }),
         getTransactions({ page: 0, size: 5, sortBy: 'transactionDate', sortDir: 'desc' }),
       ]);
-      setSummary(sumRes.data.data);
-      setMonthly(monRes.data.data);
-      setCategories(catRes.data.data);
-      setBudgetAnalysis(budRes.data.data);
-      setRecentTxns(txnRes.data.data?.content || []);
-    } catch { toast.error('Failed to load dashboard'); }
-    finally { setLoading(false); }
+
+      if (results[0].status === 'fulfilled') setSummary(results[0].value.data.data);
+      else toast.error('Could not load summary data');
+
+      if (results[1].status === 'fulfilled') setMonthly(results[1].value.data.data);
+      if (results[2].status === 'fulfilled') setCategories(results[2].value.data.data);
+      if (results[3].status === 'fulfilled') setBudgetAnalysis(results[3].value.data.data);
+      if (results[4].status === 'fulfilled') setRecentTxns(results[4].value.data.data?.content || []);
+
+    } catch (e) {
+      toast.error('Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
   }, [filter]);
 
   useEffect(() => { loadData(); }, [loadData]);

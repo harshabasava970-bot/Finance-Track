@@ -21,8 +21,10 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    // Logging added to help diagnose startup issues
     @Override
     public void run(String... args) {
+        log.info("DataInitializer starting...");
         try {
             initializeSystemCategories();
         } catch (Exception e) {
@@ -33,6 +35,7 @@ public class DataInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("Failed to initialize admin user: {}", e.getMessage());
         }
+        log.info("DataInitializer complete.");
     }
 
     private void initializeSystemCategories() {
