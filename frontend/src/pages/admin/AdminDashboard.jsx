@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Users, CreditCard, Tag, Shield, ChevronRight } from 'lucide-react';
 import { getAdminStats, getAdminUsers } from '../../api/admin';
 import { formatDate } from '../../utils/helpers';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -25,47 +26,51 @@ export default function AdminDashboard() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Admin Dashboard</h1>
           <p className="page-subtitle">System overview and management</p>
         </div>
+        <span className="badge badge-navy" style={{ padding: '7px 14px', fontSize: '0.78rem' }}>
+          <Shield size={12} /> Admin Panel
+        </span>
       </div>
 
-      <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 28 }}>
-        <div className="summary-card">
-          <div className="card-icon" style={{ background: '#dbeafe' }}>👥</div>
-          <div className="card-label">Total Users</div>
-          <div className="card-value">{stats?.totalUsers ?? 0}</div>
-          <div className="card-sub"><Link to="/admin/users" style={{ color: 'var(--primary)', fontSize: '0.8rem' }}>Manage →</Link></div>
+      <div className="db-stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 28 }}>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#eff6ff' }}><Users size={20} color="var(--blue)" /></div>
+          <div className="stat-label">Total Users</div>
+          <div className="stat-value">{stats?.totalUsers ?? 0}</div>
+          <div className="stat-sub"><Link to="/admin/users" style={{ color: 'var(--blue)', fontSize: '0.78rem', fontWeight: 600 }}>Manage users →</Link></div>
         </div>
-        <div className="summary-card">
-          <div className="card-icon" style={{ background: '#d1fae5' }}>💳</div>
-          <div className="card-label">Total Transactions</div>
-          <div className="card-value">{stats?.totalTransactions ?? 0}</div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'var(--income-bg)' }}><CreditCard size={20} color="var(--income)" /></div>
+          <div className="stat-label">Total Transactions</div>
+          <div className="stat-value">{stats?.totalTransactions ?? 0}</div>
+          <div className="stat-sub">System-wide</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         <div className="card">
           <div className="card-header">
-            <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Recent Users</h3>
-            <Link to="/admin/users" style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>View all →</Link>
+            <div className="section-title">Recent Users</div>
+            <Link to="/admin/users" className="btn btn-ghost btn-sm" style={{ gap: 4 }}>View all <ChevronRight size={13} /></Link>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
             <table className="table">
-              <thead><tr><th>Name</th><th>Role</th><th>Joined</th><th>Status</th></tr></thead>
+              <thead><tr><th>User</th><th>Role</th><th>Joined</th><th>Status</th></tr></thead>
               <tbody>
                 {recentUsers.map(u => (
                   <tr key={u.id}>
                     <td>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{u.fullName}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>{u.email}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--gray-800)' }}>{u.fullName}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>{u.email}</div>
                     </td>
-                    <td><span className={`badge badge-${u.role === 'ADMIN' ? 'warning' : 'primary'}`}>{u.role}</span></td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{formatDate(u.createdAt)}</td>
-                    <td><span className={`badge badge-${u.active ? 'success' : 'danger'}`}>{u.active ? 'Active' : 'Inactive'}</span></td>
+                    <td><span className={`badge ${u.role === 'ADMIN' ? 'badge-warning' : 'badge-primary'}`}>{u.role}</span></td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--gray-400)' }}>{formatDate(u.createdAt)}</td>
+                    <td><span className={`badge ${u.active ? 'badge-success' : 'badge-danger'}`}>{u.active ? 'Active' : 'Inactive'}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -74,24 +79,33 @@ export default function AdminDashboard() {
         </div>
 
         <div className="card">
-          <div className="card-header">
-            <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Quick Actions</h3>
-          </div>
-          <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Link to="/admin/users" className="btn btn-secondary" style={{ justifyContent: 'flex-start', gap: 12 }}>
-                <span>👥</span> Manage Users
+          <div className="card-header"><div className="section-title">Quick Actions</div></div>
+          <div className="card-body" style={{ padding: 0 }}>
+            {[
+              { to: '/admin/users', icon: Users, label: 'Manage Users', sub: 'View & control accounts' },
+              { to: '/admin/categories', icon: Tag, label: 'Manage Categories', sub: 'System categories' },
+              { to: '/dashboard', icon: CreditCard, label: 'My Dashboard', sub: 'Personal view' },
+            ].map(({ to, icon: Icon, label, sub }) => (
+              <Link key={to} to={to} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid var(--gray-50)', textDecoration: 'none', transition: 'background var(--t-fast)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-25)'}
+                onMouseLeave={e => e.currentTarget.style.background = ''}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={16} color="var(--gray-600)" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--gray-800)' }}>{label}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>{sub}</div>
+                </div>
+                <ChevronRight size={14} color="var(--gray-300)" />
               </Link>
-              <Link to="/admin/categories" className="btn btn-secondary" style={{ justifyContent: 'flex-start', gap: 12 }}>
-                <span>🏷️</span> Manage Categories
-              </Link>
-              <Link to="/dashboard" className="btn btn-secondary" style={{ justifyContent: 'flex-start', gap: 12 }}>
-                <span>📊</span> View My Dashboard
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
       </div>
+
+      <style>{`
+        .db-stat-grid { display: grid; gap: 18px; }
+      `}</style>
     </div>
   );
 }

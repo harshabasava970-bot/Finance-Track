@@ -1,9 +1,9 @@
-export default function EmptyState({ icon = '📭', title, message, action }) {
+export default function EmptyState({ icon, title, message, action }) {
   return (
     <div className="empty-state">
-      <div className="empty-icon">{icon}</div>
-      <h3>{title || 'No data found'}</h3>
-      <p>{message || 'Nothing to show here yet.'}</p>
+      {icon && <div className="empty-icon">{icon}</div>}
+      {title && <h3>{title}</h3>}
+      {message && <p style={{ marginTop: 6 }}>{message}</p>}
       {action && <div style={{ marginTop: 20 }}>{action}</div>}
     </div>
   );

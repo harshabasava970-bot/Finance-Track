@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Tag } from 'lucide-react';
 import { getAdminCategories, createAdminCategory, updateAdminCategory, deleteAdminCategory } from '../../api/admin';
 import { getErrorMessage } from '../../utils/helpers';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -32,31 +33,49 @@ function CategoryModal({ category, onClose, onSave }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{category ? 'Edit Category' : 'Add Category'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Tag size={16} color="var(--blue)" />
+            </div>
+            <h3 className="modal-title">{category ? 'Edit Category' : 'Add Category'}</h3>
+          </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
             <div className="form-group">
-              <label className="form-label">Category Name *</label>
+              <label className="form-label">Category name *</label>
               <input type="text" className={`form-control ${errors.name ? 'error' : ''}`}
-                placeholder="e.g. Utilities" value={form.name}
-                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors({}); }} />
+                placeholder="e.g. Utilities, Groceries"
+                value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors({}); }} />
               {errors.name && <div className="form-error">{errors.name}</div>}
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Type *</label>
-              <select className="form-control" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                <option value="INCOME">Income</option>
-                <option value="EXPENSE">Expense</option>
-              </select>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {['INCOME', 'EXPENSE'].map(t => (
+                  <button key={t} type="button"
+                    onClick={() => setForm(p => ({ ...p, type: t }))}
+                    style={{
+                      flex: 1, padding: '10px', border: `2px solid ${form.type === t ? (t === 'INCOME' ? 'var(--income)' : 'var(--expense)') : 'var(--gray-200)'}`,
+                      borderRadius: 'var(--radius)', background: form.type === t ? (t === 'INCOME' ? 'var(--income-bg)' : 'var(--expense-bg)') : 'white',
+                      color: form.type === t ? (t === 'INCOME' ? 'var(--income)' : 'var(--expense)') : 'var(--gray-400)',
+                      fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                      transition: 'all var(--t-base)',
+                    }}>
+                    {t === 'INCOME' ? '↑ Income' : '↓ Expense'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save'}</button>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ gap: 7 }}>
+              {loading ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />Saving...</> : category ? 'Update' : 'Create Category'}
+            </button>
           </div>
         </form>
       </div>
@@ -73,10 +92,8 @@ export default function CategoryManagement() {
 
   const loadCategories = async () => {
     setLoading(true);
-    try {
-      const res = await getAdminCategories();
-      setCategories(res.data.data);
-    } catch { toast.error('Failed to load categories'); }
+    try { const res = await getAdminCategories(); setCategories(res.data.data); }
+    catch { toast.error('Failed to load categories'); }
     finally { setLoading(false); }
   };
 
@@ -94,50 +111,52 @@ export default function CategoryManagement() {
   const filtered = categories.filter(c => !typeFilter || c.type === typeFilter);
 
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Category Management</h1>
           <p className="page-subtitle">Manage system-wide transaction categories</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal('create')}>+ Add Category</button>
+        <button className="btn btn-primary" onClick={() => setModal('create')} style={{ gap: 7 }}>
+          <Plus size={15} strokeWidth={2.5} /> Add Category
+        </button>
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select className="form-control" style={{ width: 160 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-              <option value="">All Types</option>
-              <option value="INCOME">Income</option>
-              <option value="EXPENSE">Expense</option>
-            </select>
-            <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)' }}>{filtered.length} categories</span>
+        <div className="card-header" style={{ gap: 12 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[{ val: '', label: 'All' }, { val: 'INCOME', label: '↑ Income' }, { val: 'EXPENSE', label: '↓ Expense' }].map(({ val, label }) => (
+              <button key={val} className={`btn btn-sm ${typeFilter === val ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setTypeFilter(val)}>{label}</button>
+            ))}
           </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginLeft: 'auto' }}>{filtered.length} categories</span>
         </div>
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <LoadingSpinner /> : filtered.length === 0 ? (
-            <EmptyState icon="🏷️" title="No categories" message="Add your first system category." />
+            <EmptyState icon={<Tag size={40} color="var(--gray-200)" />} title="No categories"
+              message="Add your first system category." />
           ) : (
             <div className="table-container">
               <table className="table">
                 <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th style={{ textAlign: 'center' }}>Actions</th>
-                  </tr>
+                  <tr><th>#</th><th>Name</th><th>Type</th><th style={{ textAlign: 'center', width: 120 }}>Actions</th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(c => (
                     <tr key={c.id}>
-                      <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>#{c.id}</td>
-                      <td style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</td>
-                      <td><span className={`badge badge-${c.type === 'INCOME' ? 'income' : 'expense'}`}>{c.type}</span></td>
+                      <td style={{ color: 'var(--gray-300)', fontSize: '0.78rem' }}>#{c.id}</td>
+                      <td style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--gray-800)' }}>{c.name}</td>
+                      <td><span className={`badge badge-${c.type.toLowerCase()}`}>{c.type === 'INCOME' ? '↑' : '↓'} {c.type}</span></td>
                       <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setModal(c)}>Edit</button>
-                          <button className="btn btn-outline-danger btn-sm" onClick={() => setDeleteId(c.id)}>Delete</button>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                          <button className="btn btn-ghost btn-icon" title="Edit" onClick={() => setModal(c)}>
+                            <Edit2 size={14} />
+                          </button>
+                          <button className="btn btn-ghost btn-icon" title="Delete" onClick={() => setDeleteId(c.id)}
+                            style={{ color: 'var(--expense)' }}>
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>

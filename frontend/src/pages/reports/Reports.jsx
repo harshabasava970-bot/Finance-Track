@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Download, Filter, Search, TrendingUp, TrendingDown, BarChart2, Hash, X, SlidersHorizontal } from 'lucide-react';
 import { getReportTransactions, getReportSummary, exportCsv } from '../../api/reports';
 import { getCategories } from '../../api/categories';
 import { formatCurrency, formatDate, getDateRange, getErrorMessage } from '../../utils/helpers';
@@ -7,7 +8,7 @@ import EmptyState from '../../components/common/EmptyState';
 import Pagination from '../../components/common/Pagination';
 import toast from 'react-hot-toast';
 
-const FILTER_OPTIONS = [
+const PERIOD_OPTIONS = [
   { value: 'this_month', label: 'This Month' },
   { value: 'last_month', label: 'Last Month' },
   { value: 'last_3_months', label: 'Last 3 Months' },
@@ -17,7 +18,7 @@ const FILTER_OPTIONS = [
 ];
 
 export default function Reports() {
-  const [filter, setFilter] = useState('this_month');
+  const [period, setPeriod] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -25,6 +26,7 @@ export default function Reports() {
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -34,11 +36,11 @@ export default function Reports() {
   const [exporting, setExporting] = useState(false);
 
   const getParams = useCallback(() => {
-    const range = filter === 'custom'
+    const range = period === 'custom'
       ? { startDate: customStart || undefined, endDate: customEnd || undefined }
-      : getDateRange(filter);
+      : getDateRange(period);
     return { ...range, type: typeFilter || undefined, categoryId: categoryId || undefined, search: search || undefined };
-  }, [filter, customStart, customEnd, typeFilter, categoryId, search]);
+  }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -54,133 +56,140 @@ export default function Reports() {
       setPagination({ page: txData.pageNumber, totalPages: txData.totalPages, totalElements: txData.totalElements });
       setSummary(sumRes.data.data);
       setCategories(catRes.data.data);
-    } catch { toast.error('Failed to load report data'); }
+    } catch { toast.error('Failed to load reports'); }
     finally { setLoading(false); }
   }, [getParams, page, sortDir]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(0); }, [filter, customStart, customEnd, typeFilter, categoryId, search]);
+  useEffect(() => { setPage(0); }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const params = getParams();
-      const res = await exportCsv({ ...params, type: typeFilter || undefined, categoryId: categoryId || undefined });
+      const res = await exportCsv(getParams());
       const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
       const a = document.createElement('a');
-      a.href = url; a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+      a.href = url; a.download = `financetrack_${new Date().toISOString().split('T')[0]}.csv`;
       a.click(); URL.revokeObjectURL(url);
-      toast.success('Export downloaded');
+      toast.success('CSV exported successfully');
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setExporting(false); }
   };
 
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Reports & History</h1>
-          <p className="page-subtitle">Complete transaction history and financial reports</p>
+          <p className="page-subtitle">Analyze your complete financial history</p>
         </div>
-        <button className="btn btn-success" onClick={handleExport} disabled={exporting}>
-          {exporting ? '⏳ Exporting...' : '⬇️ Export CSV'}
+        <button className="btn btn-teal" onClick={handleExport} disabled={exporting} style={{ gap: 7 }}>
+          <Download size={15} strokeWidth={2} />
+          {exporting ? 'Exporting...' : 'Export CSV'}
         </button>
       </div>
 
       {/* Filters */}
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-body" style={{ padding: '16px 20px' }}>
-          <div className="filters-bar" style={{ marginBottom: 0 }}>
-            <div className="filter-group">
-              <label>Period</label>
-              <select className="form-control" value={filter} onChange={e => setFilter(e.target.value)}>
-                {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: 'var(--gray-100)', borderRadius: 'var(--radius)', padding: 3, gap: 2, flexWrap: 'wrap' }}>
+              {PERIOD_OPTIONS.map(o => (
+                <button key={o.value} className={`db-filter-tab ${period === o.value ? 'active' : ''}`}
+                  onClick={() => setPeriod(o.value)} style={{ fontFamily: 'var(--font-sans)' }}>{o.label}</button>
+              ))}
             </div>
-            {filter === 'custom' && (
+
+            {period === 'custom' && (
               <>
-                <div className="filter-group">
-                  <label>From</label>
-                  <input type="date" className="form-control" value={customStart} onChange={e => setCustomStart(e.target.value)} />
-                </div>
-                <div className="filter-group">
-                  <label>To</label>
-                  <input type="date" className="form-control" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
-                </div>
+                <input type="date" className="form-control" style={{ width: 160 }} value={customStart} onChange={e => setCustomStart(e.target.value)} />
+                <input type="date" className="form-control" style={{ width: 160 }} value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
               </>
             )}
-            <div className="filter-group">
-              <label>Type</label>
-              <select className="form-control" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-                <option value="">All Types</option>
-                <option value="INCOME">Income</option>
-                <option value="EXPENSE">Expense</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Category</label>
-              <select className="form-control" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-                <option value="">All Categories</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="filter-group" style={{ flex: 2, minWidth: 200 }}>
-              <label>Search</label>
-              <input type="text" className="form-control" placeholder="Search..."
+
+            <div className="input-group" style={{ flex: 1, minWidth: 180 }}>
+              <Search size={15} className="input-icon" />
+              <input type="text" className="form-control" placeholder="Search transactions..."
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className="filter-group">
-              <label>Sort</label>
-              <select className="form-control" value={sortDir} onChange={e => setSortDir(e.target.value)}>
-                <option value="desc">Newest First</option>
-                <option value="asc">Oldest First</option>
-              </select>
-            </div>
+
+            <button className={`btn btn-secondary btn-sm`} onClick={() => setShowFilters(v => !v)} style={{ gap: 6 }}>
+              <SlidersHorizontal size={14} /> More filters
+            </button>
           </div>
+
+          {showFilters && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--gray-100)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div className="filter-group">
+                <span className="filter-label">Type</span>
+                <select className="form-control" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                  <option value="">All types</option>
+                  <option value="INCOME">Income</option>
+                  <option value="EXPENSE">Expense</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <span className="filter-label">Category</span>
+                <select className="form-control" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                  <option value="">All categories</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="filter-group">
+                <span className="filter-label">Sort</span>
+                <select className="form-control" value={sortDir} onChange={e => setSortDir(e.target.value)}>
+                  <option value="desc">Newest first</option>
+                  <option value="asc">Oldest first</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary Cards */}
       {summary && (
-        <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 24 }}>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#d1fae5' }}>💰</div>
-            <div className="card-label">Total Income</div>
-            <div className="card-value" style={{ color: 'var(--success)' }}>{formatCurrency(summary.totalIncome)}</div>
+        <div className="db-stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 24 }}>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--income-bg)' }}><TrendingUp size={18} color="var(--income)" /></div>
+            <div className="stat-label">Total Income</div>
+            <div className="stat-value" style={{ color: 'var(--income)' }}>{formatCurrency(summary.totalIncome)}</div>
           </div>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#fee2e2' }}>💸</div>
-            <div className="card-label">Total Expenses</div>
-            <div className="card-value" style={{ color: 'var(--danger)' }}>{formatCurrency(summary.totalExpenses)}</div>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--expense-bg)' }}><TrendingDown size={18} color="var(--expense)" /></div>
+            <div className="stat-label">Total Expenses</div>
+            <div className="stat-value" style={{ color: 'var(--expense)' }}>{formatCurrency(summary.totalExpenses)}</div>
           </div>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#dbeafe' }}>⚖️</div>
-            <div className="card-label">Net Balance</div>
-            <div className="card-value" style={{ color: summary.netBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: '#eff6ff' }}><BarChart2 size={18} color="var(--blue)" /></div>
+            <div className="stat-label">Net Balance</div>
+            <div className="stat-value" style={{ color: Number(summary.netBalance) >= 0 ? 'var(--income)' : 'var(--expense)' }}>
               {formatCurrency(summary.netBalance)}
             </div>
           </div>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#fef3c7' }}>📊</div>
-            <div className="card-label">Transactions</div>
-            <div className="card-value">{pagination.totalElements}</div>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ background: 'var(--gray-100)' }}><Hash size={18} color="var(--gray-500)" /></div>
+            <div className="stat-label">Transactions</div>
+            <div className="stat-value">{pagination.totalElements}</div>
           </div>
         </div>
       )}
 
-      {/* Category breakdown */}
+      {/* Category Breakdown */}
       {summary?.expenseByCategory?.length > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Expense by Category</h3></div>
+          <div className="card-header">
+            <div className="section-title">Expense by Category</div>
+          </div>
           <div className="card-body">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              {summary.expenseByCategory.map(c => (
-                <div key={c.category} style={{ padding: '12px 16px', background: 'var(--gray-50)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+              {summary.expenseByCategory.map((c, i) => (
+                <div key={c.category} style={{ padding: '12px 14px', background: 'var(--gray-25)', border: '1px solid var(--gray-100)', borderRadius: 'var(--radius)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--gray-800)' }}>{c.category}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{c.percentage?.toFixed(1)}%</div>
+                    <div style={{ fontSize: '0.855rem', fontWeight: 600, color: 'var(--gray-800)', marginBottom: 2 }}>{c.category}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>{c.percentage?.toFixed(1)}% of expenses</div>
                   </div>
-                  <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.9rem' }}>{formatCurrency(c.total)}</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--expense)' }}>{formatCurrency(c.total)}</div>
                 </div>
               ))}
             </div>
@@ -188,15 +197,15 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Transaction Table */}
       <div className="card">
         <div className="card-header">
-          <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Transaction History</h3>
-          <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{pagination.totalElements} records</span>
+          <div className="section-title">Transaction History</div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)' }}>{pagination.totalElements} records</span>
         </div>
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <LoadingSpinner /> : transactions.length === 0 ? (
-            <EmptyState icon="📋" title="No transactions found" message="No transactions match your current filters." />
+            <EmptyState icon="📋" title="No transactions found" message="Try adjusting your filters or date range." />
           ) : (
             <div className="table-container">
               <table className="table">
@@ -212,12 +221,16 @@ export default function Reports() {
                 <tbody>
                   {transactions.map(t => (
                     <tr key={t.id}>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--gray-500)', fontSize: '0.85rem' }}>{formatDate(t.transactionDate)}</td>
-                      <td><span className={`badge badge-${t.type.toLowerCase()}`}>{t.type}</span></td>
-                      <td><span style={{ background: 'var(--gray-100)', padding: '3px 10px', borderRadius: 100, fontSize: '0.8rem' }}>{t.categoryName}</span></td>
-                      <td style={{ color: 'var(--gray-600)', fontSize: '0.875rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description || '—'}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
-                        {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
+                      <td style={{ color: 'var(--gray-500)', fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}>{formatDate(t.transactionDate)}</td>
+                      <td><span className={`badge badge-${t.type.toLowerCase()}`}>{t.type === 'INCOME' ? '↑' : '↓'} {t.type}</span></td>
+                      <td><span className="chip">{t.categoryName}</span></td>
+                      <td style={{ maxWidth: 220 }}>
+                        <span style={{ fontSize: '0.855rem', color: 'var(--gray-600)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                          {t.description || '—'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.9rem', color: t.type === 'INCOME' ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap' }}>
+                        {t.type === 'INCOME' ? '+' : '−'}{formatCurrency(t.amount)}
                       </td>
                     </tr>
                   ))}
@@ -232,6 +245,13 @@ export default function Reports() {
           </div>
         )}
       </div>
+
+      <style>{`
+        .db-filter-tab { padding: 6px 12px; border-radius: 8px; border: none; background: transparent; font-size: 0.8rem; font-weight: 500; color: var(--gray-500); cursor: pointer; transition: all var(--t-fast) var(--ease); white-space: nowrap; }
+        .db-filter-tab:hover { color: var(--gray-800); }
+        .db-filter-tab.active { background: white; color: var(--gray-900); font-weight: 600; box-shadow: var(--shadow-xs); }
+        .db-stat-grid { display: grid; gap: 18px; margin-bottom: 24px; }
+      `}</style>
     </div>
   );
 }

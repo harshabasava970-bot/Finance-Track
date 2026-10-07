@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Plus, Target, Edit2, Trash2, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { getBudgets, createBudget, updateBudget, deleteBudget } from '../../api/budgets';
 import { getCategories } from '../../api/categories';
 import { formatCurrency, getErrorMessage, getBudgetStatus } from '../../utils/helpers';
@@ -7,18 +8,13 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
 
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December'
-];
-
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const now = new Date();
 
 function BudgetModal({ budget, categories, onClose, onSave }) {
   const [form, setForm] = useState(budget
     ? { categoryId: budget.categoryId.toString(), amount: budget.amount.toString(), month: budget.month.toString(), year: budget.year.toString() }
-    : { categoryId: '', amount: '', month: (now.getMonth() + 1).toString(), year: now.getFullYear().toString() }
-  );
+    : { categoryId: '', amount: '', month: (now.getMonth() + 1).toString(), year: now.getFullYear().toString() });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -28,13 +24,11 @@ function BudgetModal({ budget, categories, onClose, onSave }) {
   const validate = () => {
     const e = {};
     if (!form.categoryId) e.categoryId = 'Category is required';
-    if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) e.amount = 'Amount must be greater than 0';
-    if (!form.month) e.month = 'Month is required';
-    if (!form.year) e.year = 'Year is required';
+    if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) e.amount = 'Enter a valid amount';
     return e;
   };
 
-  const set = field => e => { setForm(f => ({ ...f, [field]: e.target.value })); setErrors(er => ({ ...er, [field]: '' })); };
+  const set = f => e => { setForm(p => ({ ...p, [f]: e.target.value })); setErrors(er => ({ ...er, [f]: '' })); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,48 +46,54 @@ function BudgetModal({ budget, categories, onClose, onSave }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">{budget ? 'Edit Budget' : 'Create Budget'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Target size={18} color="var(--blue)" />
+            </div>
+            <h3 className="modal-title">{budget ? 'Edit Budget' : 'Create Budget'}</h3>
+          </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
             <div className="form-group">
-              <label className="form-label">Category *</label>
+              <label className="form-label">Expense category *</label>
               <select className={`form-control ${errors.categoryId ? 'error' : ''}`} value={form.categoryId} onChange={set('categoryId')}>
-                <option value="">Select expense category</option>
+                <option value="">Select a category</option>
                 {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {errors.categoryId && <div className="form-error">{errors.categoryId}</div>}
+              <div className="form-hint">Only expense categories can have budgets</div>
             </div>
+
             <div className="form-group">
-              <label className="form-label">Budget Amount (₹) *</label>
+              <label className="form-label">Budget amount (₹) *</label>
               <input type="number" className={`form-control ${errors.amount ? 'error' : ''}`}
                 placeholder="0.00" value={form.amount} onChange={set('amount')} min="0.01" step="0.01" />
               {errors.amount && <div className="form-error">{errors.amount}</div>}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div className="form-group">
-                <label className="form-label">Month *</label>
-                <select className={`form-control ${errors.month ? 'error' : ''}`} value={form.month} onChange={set('month')}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Month</label>
+                <select className="form-control" value={form.month} onChange={set('month')}>
                   {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                 </select>
-                {errors.month && <div className="form-error">{errors.month}</div>}
               </div>
-              <div className="form-group">
-                <label className="form-label">Year *</label>
-                <select className={`form-control ${errors.year ? 'error' : ''}`} value={form.year} onChange={set('year')}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Year</label>
+                <select className="form-control" value={form.year} onChange={set('year')}>
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
-                {errors.year && <div className="form-error">{errors.year}</div>}
               </div>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : budget ? 'Update' : 'Create Budget'}
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ gap: 7 }}>
+              {loading ? <><span className="spinner" style={{ width: 15, height: 15, borderWidth: 2 }} />Saving...</> : budget ? 'Update Budget' : 'Create Budget'}
             </button>
           </div>
         </form>
@@ -106,7 +106,7 @@ export default function Budgets() {
   const [budgets, setBudgets] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | 'create' | budget object
+  const [modal, setModal] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [filterMonth, setFilterMonth] = useState((now.getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(now.getFullYear().toString());
@@ -132,6 +132,8 @@ export default function Budgets() {
     } catch (err) { toast.error(getErrorMessage(err)); }
   };
 
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+
   const filtered = budgets.filter(b =>
     (filterMonth ? b.month === parseInt(filterMonth) : true) &&
     (filterYear ? b.year === parseInt(filterYear) : true)
@@ -139,110 +141,139 @@ export default function Budgets() {
 
   const totalBudgeted = filtered.reduce((s, b) => s + Number(b.amount), 0);
   const totalSpent = filtered.reduce((s, b) => s + Number(b.spent), 0);
-
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+  const overBudget = filtered.filter(b => b.percentageUsed >= 100).length;
 
   return (
-    <div>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Budget Management</h1>
-          <p className="page-subtitle">Set and track your monthly spending limits</p>
+          <p className="page-subtitle">Set monthly spending limits and track progress</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal('create')}>+ Create Budget</button>
+        <button className="btn btn-primary" onClick={() => setModal('create')} style={{ gap: 7 }}>
+          <Plus size={15} strokeWidth={2.5} /> Create Budget
+        </button>
       </div>
 
-      {/* Filter */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <select className="form-control" style={{ width: 150 }} value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-          <option value="">All Months</option>
+      {/* Period Filter */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select className="form-control" style={{ width: 160 }} value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+          <option value="">All months</option>
           {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
         </select>
         <select className="form-control" style={{ width: 110 }} value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-          <option value="">All Years</option>
+          <option value="">All years</option>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+        {overBudget > 0 && (
+          <div className="alert alert-error" style={{ margin: 0, padding: '8px 14px', flex: 'auto' }}>
+            <AlertTriangle size={15} /> {overBudget} budget{overBudget > 1 ? 's' : ''} exceeded — review your spending
+          </div>
+        )}
       </div>
 
-      {/* Summary */}
+      {/* Summary Strip */}
       {filtered.length > 0 && (
-        <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#dbeafe' }}>🎯</div>
-            <div className="card-label">Total Budgeted</div>
-            <div className="card-value">{formatCurrency(totalBudgeted)}</div>
+        <div className="bgt-summary">
+          <div className="bgt-sum-item">
+            <span className="bgt-sum-label">Total Budgeted</span>
+            <span className="bgt-sum-val">{formatCurrency(totalBudgeted)}</span>
           </div>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#fee2e2' }}>💸</div>
-            <div className="card-label">Total Spent</div>
-            <div className="card-value" style={{ color: 'var(--danger)' }}>{formatCurrency(totalSpent)}</div>
+          <div className="bgt-sum-divider" />
+          <div className="bgt-sum-item">
+            <span className="bgt-sum-label">Total Spent</span>
+            <span className="bgt-sum-val" style={{ color: 'var(--expense)' }}>{formatCurrency(totalSpent)}</span>
           </div>
-          <div className="summary-card">
-            <div className="card-icon" style={{ background: '#d1fae5' }}>💰</div>
-            <div className="card-label">Remaining</div>
-            <div className="card-value" style={{ color: 'var(--success)' }}>{formatCurrency(totalBudgeted - totalSpent)}</div>
+          <div className="bgt-sum-divider" />
+          <div className="bgt-sum-item">
+            <span className="bgt-sum-label">Remaining</span>
+            <span className="bgt-sum-val" style={{ color: 'var(--income)' }}>{formatCurrency(totalBudgeted - totalSpent)}</span>
+          </div>
+          <div className="bgt-sum-divider" />
+          <div className="bgt-sum-item">
+            <span className="bgt-sum-label">Overall Usage</span>
+            <span className="bgt-sum-val">{totalBudgeted > 0 ? ((totalSpent / totalBudgeted) * 100).toFixed(0) : 0}%</span>
           </div>
         </div>
       )}
 
+      {/* Budget Cards */}
       {loading ? <LoadingSpinner /> : filtered.length === 0 ? (
         <div className="card">
           <div className="card-body">
-            <EmptyState icon="🎯" title="No budgets found"
+            <EmptyState icon={<Target size={40} color="var(--gray-200)" />}
+              title="No budgets for this period"
               message="Create a budget to start tracking your spending limits."
-              action={<button className="btn btn-primary" onClick={() => setModal('create')}>Create Budget</button>} />
+              action={<button className="btn btn-primary btn-sm" onClick={() => setModal('create')}><Plus size={13} /> Create Budget</button>} />
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
+        <div className="bgt-grid">
           {filtered.map(b => {
             const status = getBudgetStatus(b.percentageUsed);
+            const pct = Math.min(b.percentageUsed, 100);
             return (
-              <div key={b.id} className="card">
-                <div className="card-body">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                    <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 4 }}>{b.categoryName}</h3>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>
-                        {MONTHS[b.month - 1]} {b.year}
-                      </div>
-                    </div>
-                    <span className={`badge badge-${status === 'danger' ? 'danger' : status === 'warning' ? 'warning' : 'success'}`}>
-                      {b.percentageUsed?.toFixed(1)}%
+              <div key={b.id} className={`bgt-card bgt-card-${status}`}>
+                {/* Card Header */}
+                <div className="bgt-card-head">
+                  <div>
+                    <h3 className="bgt-category">{b.categoryName}</h3>
+                    <p className="bgt-period">{MONTHS[b.month - 1]} {b.year}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className={`badge ${status === 'danger' ? 'badge-danger' : status === 'warning' ? 'badge-warning' : 'badge-success'}`}>
+                      {b.percentageUsed?.toFixed(0)}%
+                    </span>
+                    {status === 'danger' && <AlertCircle size={16} color="var(--expense)" />}
+                    {status === 'good' && <CheckCircle2 size={16} color="var(--income)" />}
+                  </div>
+                </div>
+
+                {/* Progress */}
+                <div style={{ margin: '14px 0 10px' }}>
+                  <div className="progress-bar">
+                    <div className={`progress-fill progress-${status}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="bgt-stats">
+                  <div className="bgt-stat">
+                    <span className="bgt-stat-label">Budget</span>
+                    <span className="bgt-stat-val">{formatCurrency(b.amount)}</span>
+                  </div>
+                  <div className="bgt-stat bgt-stat-spent">
+                    <span className="bgt-stat-label">Spent</span>
+                    <span className="bgt-stat-val" style={{ color: 'var(--expense)' }}>{formatCurrency(b.spent)}</span>
+                  </div>
+                  <div className="bgt-stat">
+                    <span className="bgt-stat-label">Remaining</span>
+                    <span className="bgt-stat-val" style={{ color: Number(b.remaining) >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                      {formatCurrency(b.remaining)}
                     </span>
                   </div>
+                </div>
 
-                  <div className="progress-bar" style={{ marginBottom: 12 }}>
-                    <div className={`progress-fill progress-${status}`}
-                      style={{ width: `${Math.min(b.percentageUsed, 100)}%` }} />
+                {/* Alert */}
+                {b.percentageUsed >= 100 && (
+                  <div className="alert alert-error" style={{ marginTop: 12, marginBottom: 0, padding: '8px 12px', fontSize: '0.8rem' }}>
+                    <AlertTriangle size={13} /> Over budget by {formatCurrency(Math.abs(b.remaining))}
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
-                    <div style={{ textAlign: 'center', padding: '8px', background: 'var(--gray-50)', borderRadius: 8 }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', marginBottom: 2 }}>Budget</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--gray-900)' }}>{formatCurrency(b.amount)}</div>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '8px', background: '#fee2e2', borderRadius: 8 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#991b1b', marginBottom: 2 }}>Spent</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#991b1b' }}>{formatCurrency(b.spent)}</div>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '8px', background: '#d1fae5', borderRadius: 8 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#065f46', marginBottom: 2 }}>Remaining</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#065f46' }}>{formatCurrency(b.remaining)}</div>
-                    </div>
+                )}
+                {b.percentageUsed >= 80 && b.percentageUsed < 100 && (
+                  <div className="alert alert-warning" style={{ marginTop: 12, marginBottom: 0, padding: '8px 12px', fontSize: '0.8rem' }}>
+                    <AlertCircle size={13} /> Only {(100 - b.percentageUsed).toFixed(0)}% remaining
                   </div>
+                )}
 
-                  {b.percentageUsed >= 100 && (
-                    <div className="alert alert-error" style={{ padding: '8px 12px', marginBottom: 12 }}>⚠️ Budget exceeded by {formatCurrency(Math.abs(b.remaining))}</div>
-                  )}
-                  {b.percentageUsed >= 80 && b.percentageUsed < 100 && (
-                    <div className="alert alert-warning" style={{ padding: '8px 12px', marginBottom: 12 }}>⚡ {(100 - b.percentageUsed).toFixed(1)}% of budget remaining</div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => setModal(b)}>Edit</button>
-                    <button className="btn btn-outline-danger btn-sm" style={{ flex: 1 }} onClick={() => setDeleteId(b.id)}>Delete</button>
-                  </div>
+                {/* Actions */}
+                <div className="bgt-actions">
+                  <button className="btn btn-secondary btn-sm" style={{ flex: 1, gap: 6 }} onClick={() => setModal(b)}>
+                    <Edit2 size={13} /> Edit
+                  </button>
+                  <button className="btn btn-outline-danger btn-sm" style={{ flex: 1, gap: 6 }} onClick={() => setDeleteId(b.id)}>
+                    <Trash2 size={13} /> Delete
+                  </button>
                 </div>
               </div>
             );
@@ -258,6 +289,49 @@ export default function Budgets() {
       <ConfirmDialog isOpen={!!deleteId} title="Delete Budget"
         message="Are you sure you want to delete this budget? This action cannot be undone."
         onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />
+
+      <style>{`
+        .bgt-summary {
+          display: flex; align-items: center; gap: 0;
+          background: var(--white); border: 1px solid var(--gray-150);
+          border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+          margin-bottom: 24px; overflow: hidden;
+        }
+        .bgt-sum-item { flex: 1; padding: 18px 20px; text-align: center; }
+        .bgt-sum-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--gray-400); display: block; margin-bottom: 4px; }
+        .bgt-sum-val { font-size: 1.15rem; font-weight: 800; color: var(--gray-900); letter-spacing: -0.03em; }
+        .bgt-sum-divider { width: 1px; height: 40px; background: var(--gray-100); }
+
+        .bgt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+        .bgt-card {
+          background: var(--white); border-radius: var(--radius-md);
+          border: 1px solid var(--gray-150); padding: 20px;
+          box-shadow: var(--shadow-sm);
+          transition: box-shadow var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+        }
+        .bgt-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+        .bgt-card-danger { border-left: 3px solid var(--expense); }
+        .bgt-card-warning { border-left: 3px solid var(--warning); }
+        .bgt-card-good { border-left: 3px solid var(--income); }
+
+        .bgt-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12; }
+        .bgt-category { font-size: 1rem; font-weight: 700; color: var(--gray-900); letter-spacing: -0.02em; }
+        .bgt-period { font-size: 0.78rem; color: var(--gray-400); margin-top: 2px; }
+
+        .bgt-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+        .bgt-stat { background: var(--gray-25); border-radius: var(--radius-sm); padding: 10px 12px; }
+        .bgt-stat-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-400); display: block; margin-bottom: 3px; }
+        .bgt-stat-val { font-size: 0.875rem; font-weight: 700; color: var(--gray-800); }
+
+        .bgt-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+        @media (max-width: 600px) {
+          .bgt-summary { flex-direction: column; }
+          .bgt-sum-divider { width: 100%; height: 1px; }
+          .bgt-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 }

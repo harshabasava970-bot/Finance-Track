@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { changePassword } from '../../api/auth';
 import { getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
@@ -9,18 +10,19 @@ export default function ChangePassword() {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [show, setShow] = useState({ current: false, new: false, confirm: false });
 
   const validate = () => {
     const e = {};
     if (!form.currentPassword) e.currentPassword = 'Current password is required';
     if (!form.newPassword) e.newPassword = 'New password is required';
     else if (form.newPassword.length < 8) e.newPassword = 'Must be at least 8 characters';
-    if (!form.confirmPassword) e.confirmPassword = 'Please confirm new password';
+    if (!form.confirmPassword) e.confirmPassword = 'Please confirm your new password';
     else if (form.newPassword !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     return e;
   };
 
-  const set = f => e => { setForm(frm => ({ ...frm, [f]: e.target.value })); setErrors(er => ({ ...er, [f]: '' })); };
+  const set = f => e => { setForm(p => ({ ...p, [f]: e.target.value })); setErrors(er => ({ ...er, [f]: '' })); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,30 +37,60 @@ export default function ChangePassword() {
     finally { setLoading(false); }
   };
 
+  const fields = [
+    { key: 'currentPassword', label: 'Current Password', placeholder: 'Your current password', showKey: 'current' },
+    { key: 'newPassword', label: 'New Password', placeholder: 'Min. 8 characters', showKey: 'new' },
+    { key: 'confirmPassword', label: 'Confirm New Password', placeholder: 'Re-enter new password', showKey: 'confirm' },
+  ];
+
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto' }}>
-      <div className="page-header">
-        <h1 className="page-title">Change Password</h1>
-      </div>
+    <div style={{ maxWidth: 480, margin: '0 auto', animation: 'fadeIn 0.3s ease' }}>
+      <Link to="/profile" className="btn btn-ghost btn-sm" style={{ gap: 6, marginBottom: 20, color: 'var(--gray-500)' }}>
+        <ArrowLeft size={15} /> Back to Profile
+      </Link>
+
       <div className="card">
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={20} color="var(--blue)" />
+            </div>
+            <div>
+              <div className="section-title">Change Password</div>
+              <div className="section-subtitle">Use a strong, unique password</div>
+            </div>
+          </div>
+        </div>
         <div className="card-body">
           <form onSubmit={handleSubmit} noValidate>
-            {[
-              { field: 'currentPassword', label: 'Current Password', placeholder: 'Your current password' },
-              { field: 'newPassword', label: 'New Password', placeholder: 'Min. 8 characters' },
-              { field: 'confirmPassword', label: 'Confirm New Password', placeholder: 'Re-enter new password' },
-            ].map(({ field, label, placeholder }) => (
-              <div className="form-group" key={field}>
+            {fields.map(({ key, label, placeholder, showKey }) => (
+              <div className="form-group" key={key}>
                 <label className="form-label">{label} *</label>
-                <input type="password" className={`form-control ${errors[field] ? 'error' : ''}`}
-                  placeholder={placeholder} value={form[field]} onChange={set(field)} />
-                {errors[field] && <div className="form-error">{errors[field]}</div>}
+                <div className="input-group">
+                  <Lock size={15} className="input-icon" />
+                  <input type={show[showKey] ? 'text' : 'password'}
+                    className={`form-control ${errors[key] ? 'error' : ''}`}
+                    placeholder={placeholder} value={form[key]} onChange={set(key)}
+                    style={{ paddingRight: 42 }} />
+                  <button type="button" className="input-icon-right"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+                    onClick={() => setShow(s => ({ ...s, [showKey]: !s[showKey] }))}>
+                    {show[showKey] ? <EyeOff size={15} color="var(--gray-400)" /> : <Eye size={15} color="var(--gray-400)" />}
+                  </button>
+                </div>
+                {errors[key] && <div className="form-error">{errors[key]}</div>}
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+
+            <div className="alert alert-info" style={{ marginTop: 4 }}>
+              <Shield size={14} />
+              <div style={{ fontSize: '0.8rem' }}>Use at least 8 characters with a mix of letters, numbers, and symbols for a strong password.</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/profile')}>Cancel</button>
-              <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={loading}>
-                {loading ? 'Changing...' : 'Change Password'}
+              <button type="submit" className="btn btn-primary" style={{ flex: 2, gap: 8 }} disabled={loading}>
+                {loading ? <><span className="spinner" style={{ width: 15, height: 15, borderWidth: 2 }} />Changing...</> : 'Change Password'}
               </button>
             </div>
           </form>
