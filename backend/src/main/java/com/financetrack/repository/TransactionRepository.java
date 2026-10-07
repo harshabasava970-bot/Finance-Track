@@ -57,7 +57,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     BigDecimal sumByUserIdAndType(@Param("userId") Long userId, @Param("type") Category.TransactionType type);
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.user.id = :userId AND t.type = :type " +
-           "AND t.transactionDate >= :startDate AND t.transactionDate <= :endDate")
+           "AND t.transactionDate BETWEEN :startDate AND :endDate")
     BigDecimal sumByUserIdAndTypeAndDateRange(
             @Param("userId") Long userId,
             @Param("type") Category.TransactionType type,
@@ -99,8 +99,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByUserIdOrderByTransactionDateDesc(Long userId);
 
     @Query("SELECT COUNT(t) FROM Transaction t WHERE t.user.id = :userId " +
-           "AND (:startDate IS NULL OR t.transactionDate >= :startDate) " +
-           "AND (:endDate IS NULL OR t.transactionDate <= :endDate)")
+           "AND t.transactionDate BETWEEN :startDate AND :endDate")
     long countByUserIdAndDateRange(
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
