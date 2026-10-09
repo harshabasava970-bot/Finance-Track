@@ -21,10 +21,25 @@ export function AuthProvider({ children }) {
       const userData = res.data.data;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-    } catch {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
+    } catch (err) {
+      // Only clear the token on a real auth error (401/403).
+      // Do NOT clear it on network timeouts or 5xx — the server may just
+      // be cold-starting on Render free tier. Keep the cached user instead.
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      } else {
+        // Network error / timeout / 5xx — keep existing cached user data
+        // so the user stays logged in while the server wakes up
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          try { setUser(JSON.parse(stored)); } catch { setUser(null); }
+        } else {
+          setUser(null);
+        }
+      }
     } finally {
       setLoading(false);
     }

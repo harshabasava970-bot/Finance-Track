@@ -10,8 +10,18 @@ export default function Login() {
   const [errors, setErrors]   = useState({});
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Wait for auth state to resolve before redirecting
+  if (authLoading) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream-50)' }}>
+      <div style={{ textAlign:'center' }}>
+        <div className="spinner" style={{ margin:'0 auto 12px' }} />
+        <p style={{ fontSize:'0.875rem', color:'var(--cream-500)', fontFamily:'var(--font-sans)' }}>Loading…</p>
+      </div>
+    </div>
+  );
 
   if (isAuthenticated) { navigate('/dashboard', { replace: true }); return null; }
 

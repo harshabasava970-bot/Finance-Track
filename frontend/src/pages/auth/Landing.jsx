@@ -8,9 +8,12 @@ import {
 import { useState } from 'react';
 
 export default function Landing() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+
+  // If auth has settled and user is logged in, send them to dashboard.
+  // If still loading, stay on landing (never redirect to login from here).
+  if (!loading && isAuthenticated) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="landing">
