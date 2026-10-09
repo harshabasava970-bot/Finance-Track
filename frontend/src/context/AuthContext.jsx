@@ -5,40 +5,56 @@ import toast from 'react-hot-toast';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  // Initialise user from cache immediately — no flicker on first render
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('user');
       return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
-  const [loading, setLoading] = useState(true);
+
+  // Start loading=false if there is no token at all — no need to wait.
+  // Start loading=true only when a token exists and needs validation.
+  const [loading, setLoading] = useState(() => {
+    return !!localStorage.getItem('token');
+  });
 
   const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem('token');
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Use a short 8-second timeout for the auth check so the app
+      // doesn't block for 90 seconds during Render cold-start.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+
       const res = await getProfile();
+      clearTimeout(timer);
+
       const userData = res.data.data;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
+
     } catch (err) {
-      // Only clear the token on a real auth error (401/403).
-      // Do NOT clear it on network timeouts or 5xx — the server may just
-      // be cold-starting on Render free tier. Keep the cached user instead.
       const status = err?.response?.status;
+
       if (status === 401 || status === 403) {
+        // Real auth failure — token is invalid, clear it
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
       } else {
-        // Network error / timeout / 5xx — keep existing cached user data
-        // so the user stays logged in while the server wakes up
+        // Network error, timeout, or server cold-starting.
+        // Keep the cached user so the session survives.
         const stored = localStorage.getItem('user');
         if (stored) {
           try { setUser(JSON.parse(stored)); } catch { setUser(null); }
-        } else {
-          setUser(null);
         }
+        // Don't clear token — it may still be valid once backend wakes up
       }
     } finally {
       setLoading(false);
@@ -72,7 +88,7 @@ export function AuthProvider({ children }) {
     await fetchProfile();
   };
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin         = user?.role === 'ADMIN';
   const isAuthenticated = !!user;
 
   return (
