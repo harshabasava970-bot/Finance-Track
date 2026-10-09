@@ -26,10 +26,18 @@ export default function App() {
         <Toaster
           position="top-right"
           toastOptions={{
-            duration: 3000,
-            style: { borderRadius: 10, fontFamily: 'inherit', fontSize: '0.875rem' },
-            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            duration: 3500,
+            style: {
+              borderRadius: '10px',
+              fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+              fontSize: '0.875rem',
+              background: '#FFFFFF',
+              color: '#242923',
+              border: '1px solid #E7E5DE',
+              boxShadow: '0 8px 24px rgba(36,41,35,0.12)',
+            },
+            success: { iconTheme: { primary: '#245C45', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#B94A48', secondary: '#fff' } },
           }}
         />
         <Routes>

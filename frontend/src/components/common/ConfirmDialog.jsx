@@ -5,7 +5,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header" style={{ gap: 12 }}>
+        <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--expense-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <AlertTriangle size={18} color="var(--expense)" />
@@ -15,7 +15,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
           <button className="modal-close" onClick={onCancel}>✕</button>
         </div>
         <div className="modal-body">
-          <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', lineHeight: 1.6 }}>{message || 'Are you sure you want to proceed? This action cannot be undone.'}</p>
+          <p style={{ color: 'var(--cream-600)', fontSize: '0.9rem', lineHeight: 1.6 }}>{message || 'Are you sure you want to proceed? This action cannot be undone.'}</p>
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
