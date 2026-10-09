@@ -1,61 +1,28 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { login as apiLogin, register as apiRegister, getProfile } from '../api/auth';
+import { login as apiLogin, register as apiRegister } from '../api/auth';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Initialise user from cache immediately — no flicker on first render
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('user');
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
-
-  // Start loading=false if there is no token at all — no need to wait.
-  // Start loading=true only when a token exists and needs validation.
-  const [loading, setLoading] = useState(() => {
-    return !!localStorage.getItem('token');
-  });
+  const [user, setUser]       = useState(null);          // never trust localStorage blindly
+  const [loading, setLoading] = useState(true);          // always start loading
 
   const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) { setLoading(false); return; }           // no token → done immediately
 
     try {
-      // Use a short 8-second timeout for the auth check so the app
-      // doesn't block for 90 seconds during Render cold-start.
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
-
-      const res = await getProfile();
-      clearTimeout(timer);
-
+      const res = await api.get('/api/users/profile', { timeout: 10000 });
       const userData = res.data.data;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-
-    } catch (err) {
-      const status = err?.response?.status;
-
-      if (status === 401 || status === 403) {
-        // Real auth failure — token is invalid, clear it
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-      } else {
-        // Network error, timeout, or server cold-starting.
-        // Keep the cached user so the session survives.
-        const stored = localStorage.getItem('user');
-        if (stored) {
-          try { setUser(JSON.parse(stored)); } catch { setUser(null); }
-        }
-        // Don't clear token — it may still be valid once backend wakes up
-      }
+    } catch {
+      // Any error (expired token, timeout, network) → clear session
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -72,10 +39,7 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const register = async (data) => {
-    const res = await apiRegister(data);
-    return res.data.data;
-  };
+  const register = async (data) => { const res = await apiRegister(data); return res.data.data; };
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -84,15 +48,15 @@ export function AuthProvider({ children }) {
     toast.success('Logged out successfully');
   };
 
-  const refreshUser = async () => {
-    await fetchProfile();
-  };
-
-  const isAdmin         = user?.role === 'ADMIN';
-  const isAuthenticated = !!user;
+  const refreshUser = async () => { await fetchProfile(); };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, isAdmin, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      isAuthenticated: !!user,
+      isAdmin: user?.role === 'ADMIN',
+      login, register, logout, refreshUser
+    }}>
       {children}
     </AuthContext.Provider>
   );
