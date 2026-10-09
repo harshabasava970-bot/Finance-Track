@@ -53,18 +53,36 @@ export default function Reports() {
     setLoadError(false);
     try {
       const params = getParams();
-      const [txRes, sumRes, catRes] = await Promise.all([
+      // Use allSettled so one failure doesn't blank the whole page
+      const [txResult, sumResult, catResult] = await Promise.allSettled([
         getReportTransactions({ ...params, page, size:20, sortBy:'transactionDate', sortDir }),
         getReportSummary(params),
         getCategories(),
       ]);
-      const txData = txRes.data.data;
-      setTransactions(txData.content);
-      setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
-      setSummary(sumRes.data.data);
-      setCategories(catRes.data.data);
-    } catch { toast.error('Failed to load reports — server may be waking up, retrying…'); setLoadError(true); }
-    finally   { setLoading(false); }
+
+      if (txResult.status === 'fulfilled') {
+        const txData = txResult.value.data.data;
+        setTransactions(txData.content);
+        setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
+      } else {
+        toast.error('Could not load transactions');
+        setLoadError(true);
+      }
+
+      if (sumResult.status === 'fulfilled') {
+        setSummary(sumResult.value.data.data);
+      }
+
+      if (catResult.status === 'fulfilled') {
+        setCategories(catResult.value.data.data);
+      }
+
+    } catch (err) {
+      toast.error('Failed to load reports');
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [getParams, page, sortDir]);
 
   useEffect(() => { loadData(); }, [loadData]);
