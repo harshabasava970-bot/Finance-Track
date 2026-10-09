@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Download, Search, TrendingUp, TrendingDown, Wallet, Hash, X, SlidersHorizontal } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Download, Search, TrendingUp, TrendingDown, Wallet, Hash, X, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { getReportTransactions, getReportSummary, exportCsv } from '../../api/reports';
 import { getCategories } from '../../api/categories';
 import { formatCurrency, formatDate, getDateRange, getErrorMessage } from '../../utils/helpers';
@@ -33,6 +33,7 @@ export default function Reports() {
   const [pagination, setPagination]     = useState({ page:0, totalPages:1, totalElements:0 });
   const [categories, setCategories]     = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [loadError, setLoadError]       = useState(false);
   const [exporting, setExporting]       = useState(false);
 
   const getParams = useCallback(() => {
@@ -49,6 +50,7 @@ export default function Reports() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = getParams();
       const [txRes, sumRes, catRes] = await Promise.all([
@@ -61,7 +63,7 @@ export default function Reports() {
       setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
       setSummary(sumRes.data.data);
       setCategories(catRes.data.data);
-    } catch { toast.error('Failed to load reports'); }
+    } catch { toast.error('Failed to load reports — server may be waking up, retrying…'); setLoadError(true); }
     finally   { setLoading(false); }
   }, [getParams, page, sortDir]);
 
@@ -94,6 +96,11 @@ export default function Reports() {
           <Download size={15} strokeWidth={2} />
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
+        {loadError && (
+          <button className="btn btn-secondary" onClick={loadData} style={{ gap:6 }}>
+            <RefreshCw size={14} /> Retry
+          </button>
+        )}
       </div>
 
       {/* Filters */}

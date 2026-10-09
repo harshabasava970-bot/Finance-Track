@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
 import AdminLayout from './components/layout/AdminLayout';
+import { pingBackend } from './api/axios';
 
 // Pages
 import Landing from './pages/auth/Landing';
@@ -18,6 +20,47 @@ import ChangePassword from './pages/profile/ChangePassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
+
+/* ── Render cold-start warm-up banner ── */
+function WarmupBanner() {
+  const [show, setShow] = useState(false);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    // Show banner only after 3 seconds of waiting (avoids flash on fast connections)
+    const showTimer = setTimeout(() => setShow(true), 3000);
+
+    pingBackend().finally(() => {
+      clearTimeout(showTimer);
+      setShow(false);
+      setDone(true);
+    });
+
+    return () => clearTimeout(showTimer);
+  }, []);
+
+  if (!show || done) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+      background: '#242923', color: 'white', borderRadius: 12,
+      padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10,
+      fontSize: '0.855rem', fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontWeight: 500, zIndex: 9999, boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+      border: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
+    }}>
+      <span style={{
+        width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)',
+        borderTopColor: '#8ECFAD', borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite', flexShrink: 0,
+        display: 'inline-block',
+      }} />
+      Waking up the server… this takes ~30 seconds on first load
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -40,6 +83,10 @@ export default function App() {
             error:   { iconTheme: { primary: '#B94A48', secondary: '#fff' } },
           }}
         />
+
+        {/* Pings backend on load; shows banner if it takes > 3 seconds */}
+        <WarmupBanner />
+
         <Routes>
           {/* Public */}
           <Route path="/" element={<Landing />} />

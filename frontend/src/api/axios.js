@@ -6,7 +6,7 @@ const BASE_URL = 'https://financetrack-backend-it64.onrender.com';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 60000, // 60 seconds to handle Render cold start
+  timeout: 90000, // 90 seconds — covers Render cold start (~50-60s)
 });
 
 // Attach JWT token to every request
@@ -33,5 +33,15 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Ping the backend to wake it from Render's free-tier sleep.
+ * Called once on app load. Silently succeeds or fails — never throws.
+ */
+export const pingBackend = () =>
+  api.get('/api/health', { timeout: 90000 }).catch(() => {
+    // Render may not have a /health endpoint — that's fine, the request
+    // still wakes the dyno. Any response (including 404) means it's awake.
+  });
 
 export default api;
