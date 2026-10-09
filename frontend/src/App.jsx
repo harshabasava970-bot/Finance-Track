@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
 import AdminLayout from './components/layout/AdminLayout';
@@ -21,25 +21,29 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 
-/* ── Render cold-start warm-up banner ── */
-function WarmupBanner() {
+// ── Server-ready context ──────────────────────────────────────────────────────
+// Pages that load data can read this to know if the backend is warm.
+export const ServerReadyContext = createContext(false);
+export const useServerReady = () => useContext(ServerReadyContext);
+
+// ── Warmup banner + ping ──────────────────────────────────────────────────────
+function ServerWarmup({ onReady }) {
   const [show, setShow] = useState(false);
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Show banner only after 3 seconds of waiting (avoids flash on fast connections)
-    const showTimer = setTimeout(() => setShow(true), 3000);
+    // Show "waking up" banner only after 4s so fast connections never see it
+    const t = setTimeout(() => setShow(true), 4000);
 
     pingBackend().finally(() => {
-      clearTimeout(showTimer);
+      clearTimeout(t);
       setShow(false);
-      setDone(true);
+      onReady();
     });
 
-    return () => clearTimeout(showTimer);
-  }, []);
+    return () => clearTimeout(t);
+  }, [onReady]);
 
-  if (!show || done) return null;
+  if (!show) return null;
 
   return (
     <div style={{
@@ -53,69 +57,72 @@ function WarmupBanner() {
       <span style={{
         width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)',
         borderTopColor: '#8ECFAD', borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite', flexShrink: 0,
+        animation: 'appSpin 0.8s linear infinite', flexShrink: 0,
         display: 'inline-block',
       }} />
-      Waking up the server… this takes ~30 seconds on first load
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      Waking up the server… this takes ~30s on first load
+      <style>{`@keyframes appSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [serverReady, setServerReady] = useState(false);
+
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3500,
-            style: {
-              borderRadius: '10px',
-              fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
-              fontSize: '0.875rem',
-              background: '#FFFFFF',
-              color: '#242923',
-              border: '1px solid #E7E5DE',
-              boxShadow: '0 8px 24px rgba(36,41,35,0.12)',
-            },
-            success: { iconTheme: { primary: '#245C45', secondary: '#fff' } },
-            error:   { iconTheme: { primary: '#B94A48', secondary: '#fff' } },
-          }}
-        />
+    <ServerReadyContext.Provider value={serverReady}>
+      <BrowserRouter>
+        <AuthProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                borderRadius: '10px',
+                fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+                fontSize: '0.875rem',
+                background: '#FFFFFF',
+                color: '#242923',
+                border: '1px solid #E7E5DE',
+                boxShadow: '0 8px 24px rgba(36,41,35,0.12)',
+              },
+              success: { iconTheme: { primary: '#245C45', secondary: '#fff' } },
+              error:   { iconTheme: { primary: '#B94A48', secondary: '#fff' } },
+            }}
+          />
 
-        {/* Pings backend on load; shows banner if it takes > 3 seconds */}
-        <WarmupBanner />
+          <ServerWarmup onReady={() => setServerReady(true)} />
 
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Routes>
+            {/* Public */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Authenticated */}
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/transactions/new" element={<TransactionForm />} />
-            <Route path="/transactions/edit/:id" element={<TransactionForm />} />
-            <Route path="/budgets" element={<Budgets />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/change-password" element={<ChangePassword />} />
+            {/* Authenticated */}
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/transactions/new" element={<TransactionForm />} />
+              <Route path="/transactions/edit/:id" element={<TransactionForm />} />
+              <Route path="/budgets" element={<Budgets />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/change-password" element={<ChangePassword />} />
 
-            {/* Admin - nested under AppLayout + AdminLayout guard */}
-            <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/admin/categories" element={<CategoryManagement />} />
+              <Route element={<AdminLayout />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/admin/categories" element={<CategoryManagement />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ServerReadyContext.Provider>
   );
 }

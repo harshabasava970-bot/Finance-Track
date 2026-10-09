@@ -12,7 +12,7 @@ import { getDashboardSummary, getMonthlyData, getCategorySpending, getBudgetAnal
 import { getTransactions } from '../../api/transactions';
 import { formatCurrency, getDateRange, getBudgetStatus, formatDate } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useServerReady } from '../../App';
 import toast from 'react-hot-toast';
 
 const CHART_COLORS = [
@@ -51,6 +51,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const serverReady = useServerReady();
   const [filter, setFilter]                 = useState('this_month');
   const [summary, setSummary]               = useState(null);
   const [monthly, setMonthly]               = useState([]);
@@ -86,7 +87,7 @@ export default function Dashboard() {
     finally   { setLoading(false); }
   }, [filter]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (serverReady) loadData(); }, [loadData, serverReady]);
 
   if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
 

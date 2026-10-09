@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, Search, TrendingUp, TrendingDown, Wallet, Hash, X, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { getReportTransactions, getReportSummary, exportCsv } from '../../api/reports';
 import { getCategories } from '../../api/categories';
@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, getDateRange, getErrorMessage } from '../..
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import Pagination from '../../components/common/Pagination';
+import { useServerReady } from '../../App';
 import toast from 'react-hot-toast';
 
 const PERIOD_OPTIONS = [
@@ -18,6 +19,7 @@ const PERIOD_OPTIONS = [
 ];
 
 export default function Reports() {
+  const serverReady = useServerReady();
   const [period, setPeriod]           = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd]     = useState('');
@@ -51,41 +53,39 @@ export default function Reports() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
-    try {
-      const params = getParams();
-      // Use allSettled so one failure doesn't blank the whole page
-      const [txResult, sumResult, catResult] = await Promise.allSettled([
-        getReportTransactions({ ...params, page, size:20, sortBy:'transactionDate', sortDir }),
-        getReportSummary(params),
-        getCategories(),
-      ]);
 
-      if (txResult.status === 'fulfilled') {
-        const txData = txResult.value.data.data;
-        setTransactions(txData.content);
-        setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
-      } else {
-        toast.error('Could not load transactions');
-        setLoadError(true);
-      }
+    const params = getParams();
 
-      if (sumResult.status === 'fulfilled') {
-        setSummary(sumResult.value.data.data);
-      }
+    // Use allSettled so one failure doesn't blank the whole page
+    const [txResult, sumResult, catResult] = await Promise.allSettled([
+      getReportTransactions({ ...params, page, size:20, sortBy:'transactionDate', sortDir }),
+      getReportSummary(params),
+      getCategories(),
+    ]);
 
-      if (catResult.status === 'fulfilled') {
-        setCategories(catResult.value.data.data);
-      }
-
-    } catch (err) {
-      toast.error('Failed to load reports');
+    if (txResult.status === 'fulfilled') {
+      const txData = txResult.value.data.data;
+      setTransactions(txData.content);
+      setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
+    } else {
       setLoadError(true);
-    } finally {
-      setLoading(false);
     }
+
+    if (sumResult.status === 'fulfilled') setSummary(sumResult.value.data.data);
+    if (catResult.status === 'fulfilled') setCategories(catResult.value.data.data);
+
+    // If both main calls failed, show one clear message
+    if (txResult.status === 'rejected' && sumResult.status === 'rejected') {
+      toast.error('Server is waking up — please wait a moment and click Retry');
+    } else if (txResult.status === 'rejected') {
+      toast.error('Could not load transactions — try Retry');
+    }
+
+    setLoading(false);
   }, [getParams, page, sortDir]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Wait for server to be awake before loading data
+  useEffect(() => { if (serverReady) loadData(); }, [loadData, serverReady]);
   useEffect(() => { setPage(0); }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
   const handleExport = async () => {

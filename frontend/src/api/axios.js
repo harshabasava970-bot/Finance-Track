@@ -5,7 +5,7 @@ const BASE_URL = 'https://financetrack-backend-it64.onrender.com';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 90000,
+  timeout: 120000,  // 2 minutes — covers Render cold start
 });
 
 api.interceptors.request.use(
@@ -21,7 +21,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Only redirect to /login if the user is NOT already on a public page
       const publicPaths = ['/', '/login', '/register'];
       if (!publicPaths.includes(window.location.pathname)) {
         localStorage.removeItem('token');
@@ -33,9 +32,10 @@ api.interceptors.response.use(
   }
 );
 
-// Ping a public auth endpoint to wake Render from sleep
+// Ping the login endpoint (public, always exists) to wake Render from sleep.
+// Returns a promise that resolves once the server responds (any response = awake).
 export const pingBackend = () =>
-  api.post('/api/auth/login', {}, { timeout: 90000 })
-    .catch(() => { /* any response (including 400/401) means server is awake */ });
+  api.post('/api/auth/login', {}, { timeout: 120000 })
+    .catch(() => { /* 400/422 = server is awake, that's fine */ });
 
 export default api;
