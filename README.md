@@ -3,6 +3,7 @@
 A complete full-stack personal finance management web application built with **React + Spring Boot + MySQL**.
 
 > 🎓 Final Year College Project
+> Live URL: https://frontend-tau-livid-99.vercel.app
 
 ---
 
