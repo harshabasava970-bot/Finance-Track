@@ -3,6 +3,7 @@
 A complete full-stack personal finance management web application built with **React + Spring Boot + MySQL**.
 
 > 🎓 Final Year College Project
+
 > Live URL: https://frontend-tau-livid-99.vercel.app
 
 ---
@@ -224,5 +225,3 @@ Finance-Track/
 | VITE_API_URL | Backend base URL | http://localhost:8080 |
 
 ---
-
-*Built with ❤️ for a Final Year College Project Demonstration*
