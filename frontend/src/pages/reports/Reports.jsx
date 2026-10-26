@@ -10,16 +10,17 @@ import { useServerReady } from '../../App';
 import toast from 'react-hot-toast';
 
 const PERIOD_OPTIONS = [
-  { value:'this_month',    label:'This Month'    },
-  { value:'last_month',    label:'Last Month'    },
-  { value:'last_3_months', label:'3 Months'      },
-  { value:'last_6_months', label:'6 Months'      },
-  { value:'this_year',     label:'This Year'     },
-  { value:'custom',        label:'Custom Range'  },
+  { value:'this_month',    label:'This Month'   },
+  { value:'last_month',    label:'Last Month'   },
+  { value:'last_3_months', label:'3 Months'     },
+  { value:'last_6_months', label:'6 Months'     },
+  { value:'this_year',     label:'This Year'    },
+  { value:'custom',        label:'Custom Range' },
 ];
 
 export default function Reports() {
   const serverReady = useServerReady();
+
   const [period, setPeriod]           = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd]     = useState('');
@@ -55,8 +56,6 @@ export default function Reports() {
     setLoadError(false);
 
     const params = getParams();
-
-    // Use allSettled so one failure doesn't blank the whole page
     const [txResult, sumResult, catResult] = await Promise.allSettled([
       getReportTransactions({ ...params, page, size:20, sortBy:'transactionDate', sortDir }),
       getReportSummary(params),
@@ -64,27 +63,21 @@ export default function Reports() {
     ]);
 
     if (txResult.status === 'fulfilled') {
-      const txData = txResult.value.data.data;
-      setTransactions(txData.content);
-      setPagination({ page:txData.pageNumber, totalPages:txData.totalPages, totalElements:txData.totalElements });
+      const d = txResult.value.data.data;
+      setTransactions(d.content);
+      setPagination({ page:d.pageNumber, totalPages:d.totalPages, totalElements:d.totalElements });
     } else {
       setLoadError(true);
+      toast.error('Could not load transactions — click Retry');
     }
 
     if (sumResult.status === 'fulfilled') setSummary(sumResult.value.data.data);
     if (catResult.status === 'fulfilled') setCategories(catResult.value.data.data);
 
-    // If both main calls failed, show one clear message
-    if (txResult.status === 'rejected' && sumResult.status === 'rejected') {
-      toast.error('Server is waking up — please wait a moment and click Retry');
-    } else if (txResult.status === 'rejected') {
-      toast.error('Could not load transactions — try Retry');
-    }
-
     setLoading(false);
   }, [getParams, page, sortDir]);
 
-  // Wait for server to be awake before loading data
+  // Only load data after server is confirmed awake
   useEffect(() => { if (serverReady) loadData(); }, [loadData, serverReady]);
   useEffect(() => { setPage(0); }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
@@ -103,6 +96,15 @@ export default function Reports() {
     finally       { setExporting(false); }
   };
 
+  // Show a clear waiting state while server is waking up
+  if (!serverReady) return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:400, gap:16 }}>
+      <div className="spinner" style={{ width:32, height:32, borderWidth:3 }} />
+      <p style={{ fontSize:'0.95rem', color:'var(--cream-600)', fontWeight:500 }}>Connecting to server…</p>
+      <p style={{ fontSize:'0.82rem', color:'var(--cream-400)' }}>This takes up to 30 seconds on first load (Render free tier)</p>
+    </div>
+  );
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -110,22 +112,23 @@ export default function Reports() {
           <h1 className="page-title">Reports &amp; History</h1>
           <p className="page-subtitle">Analyze your complete financial history</p>
         </div>
-        <button className="btn btn-teal" onClick={handleExport} disabled={exporting} style={{ gap:7 }}>
-          <Download size={15} strokeWidth={2} />
-          {exporting ? 'Exporting…' : 'Export CSV'}
-        </button>
-        {loadError && (
-          <button className="btn btn-secondary" onClick={loadData} style={{ gap:6 }}>
-            <RefreshCw size={14} /> Retry
+        <div style={{ display:'flex', gap:8 }}>
+          {loadError && (
+            <button className="btn btn-secondary" onClick={loadData} style={{ gap:6 }}>
+              <RefreshCw size={14} /> Retry
+            </button>
+          )}
+          <button className="btn btn-teal" onClick={handleExport} disabled={exporting} style={{ gap:7 }}>
+            <Download size={15} strokeWidth={2} />
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
-        )}
+        </div>
       </div>
 
       {/* Filters */}
       <div className="card" style={{ marginBottom:24 }}>
         <div className="card-body" style={{ padding:'16px 20px' }}>
           <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-            {/* Period tabs */}
             <div className="rpt-period-tabs">
               {PERIOD_OPTIONS.map(o => (
                 <button key={o.value}
@@ -192,16 +195,12 @@ export default function Reports() {
       {summary && (
         <div className="rpt-stat-grid">
           <div className="stat-card">
-            <div className="stat-icon" style={{ background:'var(--income-bg)' }}>
-              <TrendingUp size={18} color="var(--income)" />
-            </div>
+            <div className="stat-icon" style={{ background:'var(--income-bg)' }}><TrendingUp size={18} color="var(--income)" /></div>
             <div className="stat-label">Total Income</div>
             <div className="stat-value" style={{ color:'var(--income)' }}>{formatCurrency(summary.totalIncome)}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-icon" style={{ background:'var(--expense-bg)' }}>
-              <TrendingDown size={18} color="var(--expense)" />
-            </div>
+            <div className="stat-icon" style={{ background:'var(--expense-bg)' }}><TrendingDown size={18} color="var(--expense)" /></div>
             <div className="stat-label">Total Expenses</div>
             <div className="stat-value" style={{ color:'var(--expense)' }}>{formatCurrency(summary.totalExpenses)}</div>
           </div>
@@ -215,9 +214,7 @@ export default function Reports() {
             </div>
           </div>
           <div className="stat-card">
-            <div className="stat-icon" style={{ background:'var(--cream-100)' }}>
-              <Hash size={18} color="var(--cream-600)" />
-            </div>
+            <div className="stat-icon" style={{ background:'var(--cream-100)' }}><Hash size={18} color="var(--cream-600)" /></div>
             <div className="stat-label">Transactions</div>
             <div className="stat-value">{pagination.totalElements}</div>
           </div>
@@ -227,9 +224,7 @@ export default function Reports() {
       {/* Category breakdown */}
       {summary?.expenseByCategory?.length > 0 && (
         <div className="card" style={{ marginBottom:24 }}>
-          <div className="card-header">
-            <div className="section-title">Expense by Category</div>
-          </div>
+          <div className="card-header"><div className="section-title">Expense by Category</div></div>
           <div className="card-body">
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:10 }}>
               {summary.expenseByCategory.map(c => (
@@ -260,10 +255,7 @@ export default function Reports() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Category</th>
-                    <th>Description</th>
+                    <th>Date</th><th>Type</th><th>Category</th><th>Description</th>
                     <th style={{ textAlign:'right' }}>Amount</th>
                   </tr>
                 </thead>
@@ -297,40 +289,18 @@ export default function Reports() {
 
       <style>{`
         .rpt-period-tabs { display:flex; background:var(--cream-100); border-radius:var(--radius); padding:3px; gap:2px; flex-wrap:wrap; }
-        .rpt-period-tab {
-          padding:6px 12px; border-radius:8px; border:none; background:transparent;
-          font-size:0.8rem; font-weight:500; color:var(--cream-500); cursor:pointer;
-          transition:all var(--t-fast); white-space:nowrap; font-family:var(--font-sans);
-        }
+        .rpt-period-tab { padding:6px 12px; border-radius:8px; border:none; background:transparent; font-size:0.8rem; font-weight:500; color:var(--cream-500); cursor:pointer; transition:all var(--t-fast); white-space:nowrap; font-family:var(--font-sans); }
         .rpt-period-tab:hover  { color:var(--charcoal); }
         .rpt-period-tab.active { background:white; color:var(--charcoal); font-weight:600; box-shadow:var(--shadow-xs); }
-
-        .rpt-clear {
-          position:absolute; right:10px; top:50%; transform:translateY(-50%);
-          background:none; border:none; cursor:pointer; color:var(--cream-400);
-          display:flex; align-items:center; padding:2px; border-radius:4px;
-          transition:color var(--t-fast);
-        }
-        .rpt-clear:hover { color:var(--charcoal); }
-
+        .rpt-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--cream-400); display:flex; align-items:center; padding:2px; border-radius:4px; }
         .rpt-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:24px; }
-
-        .rpt-cat-item {
-          padding:12px 14px; background:var(--cream-50);
-          border:1px solid var(--cream-100); border-radius:var(--radius);
-          display:flex; justify-content:space-between; align-items:center; gap:8px;
-          transition:box-shadow var(--t-fast);
-        }
+        .rpt-cat-item { padding:12px 14px; background:var(--cream-50); border:1px solid var(--cream-100); border-radius:var(--radius); display:flex; justify-content:space-between; align-items:center; gap:8px; }
         .rpt-cat-item:hover { box-shadow:var(--shadow-sm); }
-
-        @media (max-width:900px) {
-          .rpt-stat-grid { grid-template-columns:repeat(2,1fr); }
-        }
+        @media (max-width:900px) { .rpt-stat-grid { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:600px) {
-          .rpt-stat-grid  { grid-template-columns:1fr 1fr; }
+          .rpt-stat-grid { grid-template-columns:1fr 1fr; }
           .rpt-period-tabs { overflow-x:auto; flex-wrap:nowrap; }
-          .table th:nth-child(4),
-          .table td:nth-child(4) { display:none; }
+          .table th:nth-child(4), .table td:nth-child(4) { display:none; }
         }
       `}</style>
     </div>

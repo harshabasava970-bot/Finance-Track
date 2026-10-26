@@ -22,46 +22,59 @@ import UserManagement from './pages/admin/UserManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 
 // ── Server-ready context ──────────────────────────────────────────────────────
-// Pages that load data can read this to know if the backend is warm.
 export const ServerReadyContext = createContext(false);
 export const useServerReady = () => useContext(ServerReadyContext);
 
-// ── Warmup banner + ping ──────────────────────────────────────────────────────
+// ── Warmup banner ─────────────────────────────────────────────────────────────
 function ServerWarmup({ onReady }) {
   const [show, setShow] = useState(false);
+  const [dots, setDots] = useState('');
 
   useEffect(() => {
-    // Show "waking up" banner only after 4s so fast connections never see it
-    const t = setTimeout(() => setShow(true), 4000);
+    // Show banner after 3s — fast connections won't see it
+    const showTimer = setTimeout(() => setShow(true), 3000);
 
     pingBackend().finally(() => {
-      clearTimeout(t);
+      clearTimeout(showTimer);
       setShow(false);
       onReady();
     });
 
-    return () => clearTimeout(t);
+    return () => clearTimeout(showTimer);
   }, [onReady]);
+
+  // Animated dots while waiting
+  useEffect(() => {
+    if (!show) return;
+    const t = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500);
+    return () => clearInterval(t);
+  }, [show]);
 
   if (!show) return null;
 
   return (
     <div style={{
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-      background: '#242923', color: 'white', borderRadius: 12,
-      padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10,
-      fontSize: '0.855rem', fontFamily: "'Plus Jakarta Sans', sans-serif",
-      fontWeight: 500, zIndex: 9999, boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-      border: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
+      background: '#1a4433', color: 'white', borderRadius: 12,
+      padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12,
+      fontSize: '0.875rem', fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontWeight: 500, zIndex: 9999, boxShadow: '0 8px 32px rgba(0,0,0,0.30)',
+      border: '1px solid rgba(142,207,173,0.2)',
     }}>
       <span style={{
-        width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)',
+        width: 16, height: 16,
+        border: '2.5px solid rgba(255,255,255,0.2)',
         borderTopColor: '#8ECFAD', borderRadius: '50%',
-        animation: 'appSpin 0.8s linear infinite', flexShrink: 0,
-        display: 'inline-block',
+        animation: 'warmupSpin 0.8s linear infinite',
+        flexShrink: 0, display: 'inline-block',
       }} />
-      Waking up the server… this takes ~30s on first load
-      <style>{`@keyframes appSpin { to { transform: rotate(360deg); } }`}</style>
+      <span>
+        Connecting to server{dots}
+        <span style={{ opacity: 0.55, fontSize: '0.78rem', marginLeft: 6 }}>
+          (Render free tier wakes in ~30s)
+        </span>
+      </span>
+      <style>{`@keyframes warmupSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -69,6 +82,16 @@ function ServerWarmup({ onReady }) {
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [serverReady, setServerReady] = useState(false);
+
+  // Keep-alive: ping every 13 minutes so Render never sleeps during active session
+  useEffect(() => {
+    if (!serverReady) return;
+    const keepAlive = setInterval(() => {
+      fetch(`https://financetrack-backend-it64.onrender.com/actuator/health`, { method: 'GET' })
+        .catch(() => {});
+    }, 13 * 60 * 1000);
+    return () => clearInterval(keepAlive);
+  }, [serverReady]);
 
   return (
     <ServerReadyContext.Provider value={serverReady}>
@@ -95,12 +118,10 @@ export default function App() {
           <ServerWarmup onReady={() => setServerReady(true)} />
 
           <Routes>
-            {/* Public */}
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
-            {/* Authenticated */}
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/transactions" element={<Transactions />} />
@@ -118,7 +139,6 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>

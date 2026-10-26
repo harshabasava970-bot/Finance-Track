@@ -5,7 +5,7 @@ const BASE_URL = 'https://financetrack-backend-it64.onrender.com';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 120000,  // 2 minutes — covers Render cold start
+  timeout: 120000,
 });
 
 api.interceptors.request.use(
@@ -32,10 +32,30 @@ api.interceptors.response.use(
   }
 );
 
-// Ping the login endpoint (public, always exists) to wake Render from sleep.
-// Returns a promise that resolves once the server responds (any response = awake).
-export const pingBackend = () =>
-  api.post('/api/auth/login', {}, { timeout: 120000 })
-    .catch(() => { /* 400/422 = server is awake, that's fine */ });
+/**
+ * Ping /actuator/health (public, no auth needed) to wake Render from sleep.
+ * Retries every 5s until the server responds, up to 10 attempts (50s total).
+ */
+export const pingBackend = () => {
+  return new Promise((resolve) => {
+    let attempts = 0;
+    const maxAttempts = 12; // 12 × 5s = 60s max
+
+    const tryPing = () => {
+      attempts++;
+      axios.get(`${BASE_URL}/actuator/health`, { timeout: 8000 })
+        .then(() => resolve(true))
+        .catch(() => {
+          if (attempts < maxAttempts) {
+            setTimeout(tryPing, 5000); // retry every 5s
+          } else {
+            resolve(false); // give up after 60s, let page load anyway
+          }
+        });
+    };
+
+    tryPing();
+  });
+};
 
 export default api;
