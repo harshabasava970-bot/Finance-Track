@@ -33,23 +33,23 @@ api.interceptors.response.use(
 );
 
 /**
- * Ping /actuator/health (public, no auth needed) to wake Render from sleep.
- * Retries every 5s until the server responds, up to 10 attempts (50s total).
+ * Ping /actuator/health repeatedly until the server responds.
+ * Resolves true on success, false after timeout — never rejects.
  */
 export const pingBackend = () => {
   return new Promise((resolve) => {
     let attempts = 0;
-    const maxAttempts = 12; // 12 × 5s = 60s max
+    const maxAttempts = 24; // 24 × 5s = 120s max
 
     const tryPing = () => {
       attempts++;
-      axios.get(`${BASE_URL}/actuator/health`, { timeout: 8000 })
+      axios.get(`${BASE_URL}/actuator/health`, { timeout: 6000 })
         .then(() => resolve(true))
         .catch(() => {
           if (attempts < maxAttempts) {
-            setTimeout(tryPing, 5000); // retry every 5s
+            setTimeout(tryPing, 5000);
           } else {
-            resolve(false); // give up after 60s, let page load anyway
+            resolve(false);
           }
         });
     };

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useServerReady } from '../../App';
 import { getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -11,6 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const { login, isAuthenticated } = useAuth();
+  const serverReady = useServerReady();
   const navigate = useNavigate();
   if (isAuthenticated) { navigate("/dashboard", { replace: true }); return null; }
 
@@ -31,7 +33,15 @@ export default function Login() {
       const user = await login(form.email, form.password);
       toast.success(`Welcome back, ${user.fullName.split(' ')[0]}!`);
       navigate(user.role === 'ADMIN' ? '/admin' : '/dashboard', { replace: true });
-    } catch (err) { toast.error(getErrorMessage(err)); }
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      // Network Error = server is down/sleeping — give a helpful message
+      if (!err.response || err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
+        toast.error('Server is starting up — please wait 30 seconds and try again', { duration: 6000 });
+      } else {
+        toast.error(msg);
+      }
+    }
     finally { setLoading(false); }
   };
 
@@ -94,6 +104,18 @@ export default function Login() {
             <p className="auth-form-sub">Sign in to your account to continue</p>
           </div>
 
+          {/* Server warming up notice */}
+          {!serverReady && (
+            <div style={{
+              display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+              background:'#FEF9EC', border:'1px solid #F0D080', borderRadius:'var(--radius)',
+              marginBottom:20, fontSize:'0.82rem', color:'#7A5C00',
+            }}>
+              <span style={{ width:14, height:14, border:'2px solid #F0D080', borderTopColor:'#D4A017', borderRadius:'50%', animation:'spin 0.8s linear infinite', flexShrink:0, display:'inline-block' }} />
+              <span>Server is starting up — signin may take up to 30 seconds on first load</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label className="form-label">Email address</label>
@@ -144,7 +166,7 @@ export default function Login() {
               disabled={loading}
             >
               {loading
-                ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />Signing in...</>
+                ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />{serverReady ? 'Signing in...' : 'Connecting to server...'}</>
                 : <><span>Sign in</span><ArrowRight size={15} /></>
               }
             </button>
