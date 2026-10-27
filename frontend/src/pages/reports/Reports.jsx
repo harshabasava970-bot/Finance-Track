@@ -6,7 +6,6 @@ import { formatCurrency, formatDate, getDateRange, getErrorMessage } from '../..
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import Pagination from '../../components/common/Pagination';
-import { useServerReady } from '../../App';
 import toast from 'react-hot-toast';
 
 const PERIOD_OPTIONS = [
@@ -19,9 +18,7 @@ const PERIOD_OPTIONS = [
 ];
 
 export default function Reports() {
-  const serverReady = useServerReady();
-
-  const [period, setPeriod]           = useState('this_month');
+  const [period, setPeriod] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd]     = useState('');
   const [typeFilter, setTypeFilter]   = useState('');
@@ -77,8 +74,7 @@ export default function Reports() {
     setLoading(false);
   }, [getParams, page, sortDir]);
 
-  // Only load data after server is confirmed awake
-  useEffect(() => { if (serverReady) loadData(); }, [loadData, serverReady]);
+  useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { setPage(0); }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
   const handleExport = async () => {
@@ -96,14 +92,7 @@ export default function Reports() {
     finally       { setExporting(false); }
   };
 
-  // Show a clear waiting state while server is waking up
-  if (!serverReady) return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:400, gap:16 }}>
-      <div className="spinner" style={{ width:32, height:32, borderWidth:3 }} />
-      <p style={{ fontSize:'0.95rem', color:'var(--cream-600)', fontWeight:500 }}>Connecting to server…</p>
-      <p style={{ fontSize:'0.82rem', color:'var(--cream-400)' }}>This takes up to 30 seconds on first load (Render free tier)</p>
-    </div>
-  );
+  if (loading && transactions.length === 0 && !summary) return <LoadingSpinner message="Loading reports..." />;
 
   return (
     <div className="fade-in">
