@@ -100,7 +100,7 @@ export default function Dashboard() {
       <div className="db-hero">
         <div className="db-hero-text">
           <p className="db-greeting">{getGreeting()},</p>
-          <h1 className="db-name">{user?.fullName?.split(' ')[0] || 'there'} 👋</h1>
+          <h1 className="db-name">{user?.fullName?.split(' ')[0] || 'there'} </h1>
           <p className="db-tagline">Here&apos;s your financial snapshot for {FILTERS.find(f => f.value === filter)?.label}.</p>
         </div>
         <div className="db-hero-right">
