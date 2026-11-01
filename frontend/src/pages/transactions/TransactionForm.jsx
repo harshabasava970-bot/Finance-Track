@@ -30,7 +30,7 @@ export default function TransactionForm() {
         if (isEdit) {
           const txRes = await getTransactionById(id);
           const tx = txRes.data.data;
-          setForm({ type: tx.type, amount: tx.amount.toString(), categoryId: tx.categoryId.toString(), description: tx.description || '', transactionDate: tx.transactionDate });
+          setForm({ type: tx.type, amount: tx.amount.toString(), categoryId: tx.categoryId, description: tx.description || '', transactionDate: tx.transactionDate ? new Date(tx.transactionDate).toISOString().split('T')[0] : '' });
         }
       } catch { toast.error('Failed to load form data'); navigate('/transactions'); }
       finally { setLoadingData(false); }
@@ -41,7 +41,7 @@ export default function TransactionForm() {
   useEffect(() => {
     const filtered = categories.filter(c => c.type === form.type);
     setFilteredCategories(filtered);
-    if (!filtered.find(c => c.id.toString() === form.categoryId)) {
+    if (!filtered.find(c => c.id === form.categoryId || c.id?.toString() === form.categoryId)) {
       setForm(f => ({ ...f, categoryId: '' }));
     }
   }, [form.type, categories]);
@@ -62,7 +62,7 @@ export default function TransactionForm() {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setLoading(true);
     try {
-      const payload = { type: form.type, amount: parseFloat(form.amount), categoryId: parseInt(form.categoryId), description: form.description || null, transactionDate: form.transactionDate };
+      const payload = { type: form.type, amount: parseFloat(form.amount), categoryId: form.categoryId, description: form.description || null, transactionDate: form.transactionDate };
       if (isEdit) { await updateTransaction(id, payload); toast.success('Transaction updated'); }
       else { await createTransaction(payload); toast.success('Transaction added'); }
       navigate('/transactions');
