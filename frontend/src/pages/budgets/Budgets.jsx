@@ -13,7 +13,7 @@ const now = new Date();
 
 function BudgetModal({ budget, categories, onClose, onSave }) {
   const [form, setForm] = useState(budget
-    ? { categoryId:budget.categoryId.toString(), amount:budget.amount.toString(), month:budget.month.toString(), year:budget.year.toString() }
+    ? { categoryId: budget.categoryId, amount:budget.amount.toString(), month:budget.month.toString(), year:budget.year.toString() }
     : { categoryId:'', amount:'', month:(now.getMonth()+1).toString(), year:now.getFullYear().toString() }
   );
   const [errors, setErrors] = useState({});
@@ -35,7 +35,7 @@ function BudgetModal({ budget, categories, onClose, onSave }) {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setLoading(true);
     try {
-      const payload = { categoryId:parseInt(form.categoryId), amount:parseFloat(form.amount), month:parseInt(form.month), year:parseInt(form.year) };
+      const payload = { categoryId: form.categoryId, amount:parseFloat(form.amount), month:parseInt(form.month), year:parseInt(form.year) };
       if (budget) { await updateBudget(budget.id, payload); toast.success('Budget updated'); }
       else        { await createBudget(payload);            toast.success('Budget created'); }
       onSave();
