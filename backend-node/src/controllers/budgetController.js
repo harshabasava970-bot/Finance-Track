@@ -36,6 +36,8 @@ exports.createBudget = async (req, res, next) => {
     const { categoryId, amount, month, year } = req.body;
     if (!categoryId || !amount || !month || !year) return error(res, 'categoryId, amount, month, year required', 400);
     if (amount <= 0) return error(res, 'Amount must be positive', 400);
+    // Validate MongoDB ObjectId format
+    if (!categoryId.match || !categoryId.match(/^[0-9a-fA-F]{24}$/)) return error(res, 'Invalid category ID format', 400);
     const cat = await Category.findOne({ _id: categoryId, $or: [{ isSystem: true }, { owner: req.user._id }] });
     if (!cat) return error(res, 'Category not found', 404);
     if (cat.type !== 'EXPENSE') return error(res, 'Only expense categories can have budgets', 400);

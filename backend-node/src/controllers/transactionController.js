@@ -55,6 +55,7 @@ exports.createTransaction = async (req, res, next) => {
     const { type, amount, categoryId, description, transactionDate } = req.body;
     if (!type || !amount || !categoryId) return error(res, 'type, amount and categoryId are required', 400);
     if (amount <= 0) return error(res, 'Amount must be positive', 400);
+    if (!String(categoryId).match(/^[0-9a-fA-F]{24}$/)) return error(res, 'Invalid category ID format — please refresh and try again', 400);
 
     const cat = await Category.findOne({ _id: categoryId, $or: [{ isSystem: true }, { owner: req.user._id }] });
     if (!cat) return error(res, 'Category not found', 404);
