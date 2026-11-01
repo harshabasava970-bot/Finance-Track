@@ -1,23 +1,31 @@
 services:
   - type: web
     name: financetrack-backend
-    runtime: java
-    rootDir: backend
-    buildCommand: mvn package -DskipTests
-    startCommand: java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom -Dserver.port=$PORT -jar target/financetrack-backend-1.0.0.jar
+    runtime: node
+    rootDir: backend-node
+    buildCommand: npm install
+    startCommand: npm start
     plan: free
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_USERNAME
-        sync: false
-      - key: DATABASE_PASSWORD
-        sync: false
-      - key: DB_DRIVER
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
       - key: FRONTEND_URL
         sync: false
-      - key: PORT
-        value: 8080
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

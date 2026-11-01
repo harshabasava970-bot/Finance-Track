@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://financetrack-backend-it64.onrender.com';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://financetrack-backend-it64.onrender.com';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -32,30 +32,8 @@ api.interceptors.response.use(
   }
 );
 
-/**
- * Ping /actuator/health repeatedly until the server responds.
- * Resolves true on success, false after timeout — never rejects.
- */
-export const pingBackend = () => {
-  return new Promise((resolve) => {
-    let attempts = 0;
-    const maxAttempts = 24; // 24 × 5s = 120s max
-
-    const tryPing = () => {
-      attempts++;
-      axios.get(`${BASE_URL}/actuator/health`, { timeout: 6000 })
-        .then(() => resolve(true))
-        .catch(() => {
-          if (attempts < maxAttempts) {
-            setTimeout(tryPing, 5000);
-          } else {
-            resolve(false);
-          }
-        });
-    };
-
-    tryPing();
-  });
-};
+export const pingBackend = () =>
+  axios.get(`${BASE_URL}/actuator/health`, { timeout: 8000 })
+    .catch(() => {});
 
 export default api;

@@ -48,7 +48,7 @@ export default function Reports() {
     };
   }, [period, customStart, customEnd, typeFilter, categoryId, search]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isRetry = false) => {
     setLoading(true);
     setLoadError(false);
 
@@ -65,7 +65,13 @@ export default function Reports() {
       setPagination({ page:d.pageNumber, totalPages:d.totalPages, totalElements:d.totalElements });
     } else {
       setLoadError(true);
-      toast.error('Could not load transactions — click Retry');
+      // Auto-retry once after 8s — covers Render cold-start
+      if (!isRetry) {
+        toast('Server is warming up, retrying in 8 seconds…', { icon: '⏳', duration: 8000 });
+        setTimeout(() => loadData(true), 8000);
+      } else {
+        toast.error('Could not load transactions — click Retry');
+      }
     }
 
     if (sumResult.status === 'fulfilled') setSummary(sumResult.value.data.data);
