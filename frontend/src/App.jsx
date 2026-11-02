@@ -17,11 +17,11 @@ import Budgets from './pages/budgets/Budgets';
 import Reports from './pages/reports/Reports';
 import Profile from './pages/profile/Profile';
 import ChangePassword from './pages/profile/ChangePassword';
-import AdminDashboard from './pages/admin/AdminDashboard';
+import UserCategories from './pages/categories/UserCategories';
 import UserManagement from './pages/admin/UserManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 
-// ── Server-ready context ──────────────────────────────────────────────────────
+import AdminDashboard from './pages/admin/AdminDashboard';
 export const ServerReadyContext = createContext(false);
 export const useServerReady = () => useContext(ServerReadyContext);
 
@@ -87,7 +87,7 @@ export default function App() {
   useEffect(() => {
     if (!serverReady) return;
     const keepAlive = setInterval(() => {
-      fetch(`https://financetrack-backend-it64.onrender.com/actuator/health`, { method: 'GET' })
+      fetch(`https://financetrack-backend-ckrl.onrender.com/actuator/health`, { method: 'GET' })
         .catch(() => {});
     }, 13 * 60 * 1000);
     return () => clearInterval(keepAlive);
@@ -128,6 +128,7 @@ export default function App() {
               <Route path="/transactions/new" element={<TransactionForm />} />
               <Route path="/transactions/edit/:id" element={<TransactionForm />} />
               <Route path="/budgets" element={<Budgets />} />
+              <Route path="/categories" element={<UserCategories />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/change-password" element={<ChangePassword />} />

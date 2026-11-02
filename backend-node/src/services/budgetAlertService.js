@@ -4,89 +4,157 @@ const BudgetNotification = require('../models/BudgetNotification');
 const User = require('../models/User');
 const { sendEmail } = require('../config/email');
 
-const formatINR = (amount) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+const formatINR = (n) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(n);
 
-const buildAlertEmail = (userName, categoryName, budget, spent, threshold) => {
-  const remaining = Math.max(0, budget - spent);
-  const isExceeded = threshold === 100;
-  const subject = isExceeded
-    ? 'FinanceTrack – Budget Exceeded'
+const buildEmail = (userName, categoryName, budgetAmount, spentAmount, threshold) => {
+  const remaining = Math.max(0, budgetAmount - spentAmount);
+  const is100 = threshold === 100;
+
+  const subject = is100
+    ? 'FinanceTrack – Budget Limit Reached'
     : 'FinanceTrack – Budget Warning (90%)';
+
+  const bodyText = is100
+    ? `Your spending in the ${categoryName} category has reached or exceeded your monthly budget.\n\nMonthly Budget: ${formatINR(budgetAmount)}\nAmount Spent: ${formatINR(spentAmount)}\nRemaining Budget: ${formatINR(remaining)}\n\nYour budget limit has been reached. Please review your expenses and manage your remaining finances carefully.`
+    : `Your spending in the ${categoryName} category has reached 90% of your monthly budget.\n\nMonthly Budget: ${formatINR(budgetAmount)}\nAmount Spent: ${formatINR(spentAmount)}\nRemaining Budget: ${formatINR(remaining)}\n\nYou have used 90% of your allocated budget. Please monitor your spending carefully.`;
+
   const html = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-      <div style="background:#245C45;color:white;padding:20px;border-radius:8px 8px 0 0;">
-        <h2 style="margin:0;">FinanceTrack Budget ${isExceeded ? 'Exceeded' : 'Warning'}</h2>
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:24px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:${is100 ? '#B94A48' : '#C7795B'};padding:28px 32px;">
+      <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">
+        ${is100 ? 'Budget Limit Reached' : 'Budget Warning (90%)'}
+      </h1>
+    </div>
+    <div style="padding:32px;">
+      <p style="margin:0 0 16px;color:#333;font-size:15px;">Hello <strong>${userName}</strong>,</p>
+      <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6;">
+        ${is100
+          ? `Your spending in the <strong>${categoryName}</strong> category has <strong>reached or exceeded</strong> your monthly budget.`
+          : `Your spending in the <strong>${categoryName}</strong> category has reached <strong>90%</strong> of your monthly budget.`
+        }
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;">
+        <tr style="background:#f9f9f9;">
+          <td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;width:50%;">Monthly Budget</td>
+          <td style="padding:12px 16px;border:1px solid #eee;color:#245C45;font-weight:700;">${formatINR(budgetAmount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Amount Spent</td>
+          <td style="padding:12px 16px;border:1px solid #eee;color:${is100 ? '#B94A48' : '#C7795B'};font-weight:700;">${formatINR(spentAmount)}</td>
+        </tr>
+        <tr style="background:#f9f9f9;">
+          <td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Remaining Budget</td>
+          <td style="padding:12px 16px;border:1px solid #eee;color:#333;font-weight:700;">${formatINR(remaining)}</td>
+        </tr>
+      </table>
+      <div style="background:${is100 ? '#FBF0F0' : '#FAF0EB'};border:1px solid ${is100 ? '#E8AAAA' : '#E8C4B0'};border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0;color:${is100 ? '#7a2c2b' : '#7a4a30'};font-size:14px;">
+          ${is100
+            ? 'Your budget limit has been reached. Please review your expenses and manage your remaining finances carefully.'
+            : 'You have used 90% of your allocated budget. Please monitor your spending carefully.'
+          }
+        </p>
       </div>
-      <div style="background:#f9f9f9;padding:24px;border:1px solid #e0e0e0;border-radius:0 0 8px 8px;">
-        <p>Hello <strong>${userName}</strong>,</p>
-        <p>Your spending in the <strong>${categoryName}</strong> category has ${isExceeded ? 'reached or exceeded' : 'reached 90% of'} your monthly budget.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          <tr style="background:#f0f0f0;"><td style="padding:10px;border:1px solid #ddd;"><strong>Monthly Budget</strong></td><td style="padding:10px;border:1px solid #ddd;">${formatINR(budget)}</td></tr>
-          <tr><td style="padding:10px;border:1px solid #ddd;"><strong>Amount Spent</strong></td><td style="padding:10px;border:1px solid #ddd;color:${isExceeded ? '#B94A48' : '#C7795B'};">${formatINR(spent)}</td></tr>
-          <tr style="background:#f0f0f0;"><td style="padding:10px;border:1px solid #ddd;"><strong>Remaining</strong></td><td style="padding:10px;border:1px solid #ddd;">${formatINR(remaining)}</td></tr>
-        </table>
-        <p style="color:${isExceeded ? '#B94A48' : '#C7795B'};"><strong>${isExceeded ? 'You have reached your spending limit. Please review your expenses.' : 'Please monitor your expenses to avoid exceeding your budget.'}</strong></p>
-        <hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;">
-        <p style="color:#888;font-size:12px;">Thank you,<br>FinanceTrack Team</p>
-      </div>
-    </div>`;
-  const text = `Hello ${userName},\n\nYour spending in the ${categoryName} category has ${isExceeded ? 'reached or exceeded' : 'reached 90% of'} your monthly budget.\n\nMonthly Budget: ${formatINR(budget)}\nAmount Spent: ${formatINR(spent)}\nRemaining: ${formatINR(remaining)}\n\n${isExceeded ? 'You have reached your spending limit.' : 'Please monitor your expenses.'}\n\nFinanceTrack Team`;
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+      <p style="margin:0;color:#999;font-size:13px;">Thank you,<br><strong>FinanceTrack Team</strong></p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const text = `Hello ${userName},\n\n${bodyText}\n\nThank you,\nFinanceTrack Team`;
+
   return { subject, html, text };
 };
 
 /**
- * Check budgets for a user after any transaction change and send alerts.
- * Called after create/update/delete transaction.
+ * Check all budgets for a user and send email alerts if thresholds are crossed.
+ * Called after every transaction create/update/delete.
  */
 const checkAndSendBudgetAlerts = async (userId) => {
   try {
     const user = await User.findById(userId);
     if (!user?.email) return;
 
-    const now = new Date();
+    const now   = new Date();
     const month = now.getMonth() + 1;
-    const year = now.getFullYear();
+    const year  = now.getFullYear();
 
-    const budgets = await Budget.find({ user: userId, month, year }).populate('category');
+    const budgets = await Budget.find({ user: userId, month, year }).populate('category', 'name');
 
     for (const budget of budgets) {
-      const spent = await Transaction.aggregate([
-        { $match: { user: budget.user, category: budget.category._id, type: 'EXPENSE',
+      // Calculate actual spending for this category this month
+      const agg = await Transaction.aggregate([
+        {
+          $match: {
+            user: budget.user,
+            category: budget.category._id,
+            type: 'EXPENSE',
             transactionDate: {
               $gte: new Date(year, month - 1, 1),
               $lte: new Date(year, month, 0, 23, 59, 59),
-            } } },
+            },
+          },
+        },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]);
-      const spentAmount = spent[0]?.total || 0;
-      const pct = (spentAmount / budget.amount) * 100;
 
-      // Check both thresholds
+      const spent = agg[0]?.total || 0;
+      const pct   = (spent / budget.amount) * 100;
+
+      // Check thresholds: 90 first, then 100
       for (const threshold of [90, 100]) {
-        if (pct >= threshold) {
-          // Check if already sent
-          const alreadySent = await BudgetNotification.findOne({
-            budget: budget._id, threshold, month, year,
+        if (pct < threshold) continue;
+
+        // Already sent this threshold for this budget this month?
+        const alreadySent = await BudgetNotification.findOne({
+          budget: budget._id,
+          threshold,
+          month,
+          year,
+        });
+        if (alreadySent) continue;
+
+        // Send email
+        const { subject, html, text } = buildEmail(
+          user.fullName,
+          budget.category.name,
+          budget.amount,
+          spent,
+          threshold
+        );
+
+        const result = await sendEmail({ to: user.email, subject, html, text });
+
+        // Record notification (even if failed — so we don't retry endlessly)
+        try {
+          await BudgetNotification.create({
+            user:     userId,
+            budget:   budget._id,
+            category: budget.category._id,
+            month,
+            year,
+            threshold,
+            status: result.success ? 'sent' : 'failed',
           });
-          if (!alreadySent) {
-            const { subject, html, text } = buildAlertEmail(
-              user.fullName, budget.category.name, budget.amount, spentAmount, threshold
-            );
-            const result = await sendEmail({ to: user.email, subject, html, text });
-            await BudgetNotification.create({
-              user: userId, budget: budget._id, category: budget.category._id,
-              month, year, threshold, status: result.success ? 'sent' : 'failed',
-            });
-            if (result.success) {
-              console.log(`Budget alert sent to ${user.email}: ${threshold}% for ${budget.category.name}`);
-            }
-          }
+        } catch (dupErr) {
+          // Unique constraint hit — already exists, skip silently
+        }
+
+        if (result.success) {
+          console.log(`[EMAIL] Sent ${threshold}% alert to ${user.email} for ${budget.category.name}`);
+        } else {
+          console.error(`[EMAIL] Failed ${threshold}% alert: ${result.reason}`);
         }
       }
     }
   } catch (err) {
-    console.error('Budget alert error:', err.message);
+    console.error('[BudgetAlert] Error:', err.message);
   }
 };
 

@@ -10,6 +10,7 @@ const navItems = [
   { to:'/transactions', icon:ArrowLeftRight,  label:'Transactions' },
   { to:'/budgets',      icon:Target,          label:'Budgets'      },
   { to:'/reports',      icon:BarChart3,       label:'Reports'      },
+  { to:'/categories',   icon:Tag,             label:'Categories'   },
   { to:'/profile',      icon:User,            label:'Profile'      },
 ];
 const adminItems = [
