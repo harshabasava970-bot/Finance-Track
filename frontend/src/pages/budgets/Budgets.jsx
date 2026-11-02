@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Target, Edit2, Trash2, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Target, Edit2, Trash2, AlertTriangle, AlertCircle, CheckCircle2, Tag, X } from 'lucide-react';
 import { getBudgets, createBudget, updateBudget, deleteBudget } from '../../api/budgets';
-import { getCategories } from '../../api/categories';
+import { getCategories, createCategory } from '../../api/categories';
 import { formatCurrency, getErrorMessage, getBudgetStatus } from '../../utils/helpers';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -11,14 +11,77 @@ import toast from 'react-hot-toast';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const now = new Date();
 
-function BudgetModal({ budget, categories, onClose, onSave }) {
+// Quick add expense category modal
+function QuickAddCategoryModal({ onClose, onCreated }) {
+  const [name, setName]       = useState('');
+  const [desc, setDesc]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || name.trim().length < 2) { setError('Name must be at least 2 characters'); return; }
+    setLoading(true);
+    try {
+      const res = await createCategory({ name: name.trim(), type: 'EXPENSE', description: desc });
+      toast.success(`Category "${name}" created`);
+      onCreated(res.data.data);
+    } catch (err) { toast.error(getErrorMessage(err)); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:32, height:32, borderRadius:8, background:'var(--expense-bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Tag size={14} color="var(--expense)" />
+            </div>
+            <h3 className="modal-title">Add Expense Category</h3>
+          </div>
+          <button className="modal-close" onClick={onClose}><X size={15} /></button>
+        </div>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label">Category name *</label>
+              <input type="text" className={`form-control ${error ? 'error' : ''}`}
+                placeholder="e.g. Rent, Groceries, Utilities"
+                value={name} onChange={e => { setName(e.target.value); setError(''); }} autoFocus />
+              {error && <div className="form-error">{error}</div>}
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label className="form-label">Description <span style={{ color:'var(--cream-400)', fontWeight:400 }}>— optional</span></label>
+              <input type="text" className="form-control" placeholder="Short description"
+                value={desc} onChange={e => setDesc(e.target.value)} />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ gap:6 }}>
+              {loading ? <><span className="spinner" style={{ width:13, height:13, borderWidth:2 }} />Creating…</> : 'Create'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function BudgetModal({ budget, categories: initialCategories, onClose, onSave }) {
   const [form, setForm] = useState(budget
     ? { categoryId: budget.categoryId, amount:budget.amount.toString(), month:budget.month.toString(), year:budget.year.toString() }
     : { categoryId:'', amount:'', month:(now.getMonth()+1).toString(), year:now.getFullYear().toString() }
   );
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [errors, setErrors]           = useState({});
+  const [loading, setLoading]         = useState(false);
+  const [categories, setCategories]   = useState(initialCategories);
+  const [showAddCat, setShowAddCat]   = useState(false);
+
   const expenseCategories = categories.filter(c => c.type === 'EXPENSE');
+  const userExpenseCats   = expenseCategories.filter(c => !c.isSystem);
+  const systemExpenseCats = expenseCategories.filter(c => c.isSystem);
   const years = Array.from({ length:5 }, (_, i) => now.getFullYear() - 2 + i);
 
   const validate = () => {
@@ -28,6 +91,14 @@ function BudgetModal({ budget, categories, onClose, onSave }) {
     return e;
   };
   const set = f => e => { setForm(p => ({ ...p, [f]:e.target.value })); setErrors(er => ({ ...er, [f]:'' })); };
+
+  const handleCategoryCreated = async (newCat) => {
+    setShowAddCat(false);
+    // Reload categories and auto-select the new one
+    const res = await getCategories();
+    setCategories(res.data.data);
+    setForm(p => ({ ...p, categoryId: newCat.id }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,64 +115,89 @@ function BudgetModal({ budget, categories, onClose, onSave }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ width:36, height:36, borderRadius:10, background:'var(--primary-light)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Target size={18} color="var(--primary)" />
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:'var(--primary-light)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <Target size={18} color="var(--primary)" />
+              </div>
+              <h3 className="modal-title">{budget ? 'Edit Budget' : 'Create Budget'}</h3>
             </div>
-            <h3 className="modal-title">{budget ? 'Edit Budget' : 'Create Budget'}</h3>
+            <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="modal-body">
+              <div className="form-group">
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                  <label className="form-label" style={{ marginBottom:0 }}>Expense category *</label>
+                  <button type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ gap:4, fontSize:'0.78rem', color:'var(--primary)', padding:'3px 8px' }}
+                    onClick={() => setShowAddCat(true)}>
+                    <Plus size={12} /> Add new
+                  </button>
+                </div>
+                <select className={`form-control ${errors.categoryId ? 'error' : ''}`}
+                  value={form.categoryId} onChange={set('categoryId')}>
+                  <option value="">Select a category</option>
+                  {userExpenseCats.length > 0 && (
+                    <optgroup label="My Categories">
+                      {userExpenseCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  {systemExpenseCats.length > 0 && (
+                    <optgroup label="System Categories">
+                      {systemExpenseCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+                {errors.categoryId && <div className="form-error">{errors.categoryId}</div>}
+                <div className="form-hint">Only expense categories can have budgets</div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Budget amount (₹) *</label>
+                <input type="number" className={`form-control ${errors.amount ? 'error' : ''}`}
+                  placeholder="0.00" value={form.amount} onChange={set('amount')} min="0.01" step="0.01" />
+                {errors.amount && <div className="form-error">{errors.amount}</div>}
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Month</label>
+                  <select className="form-control" value={form.month} onChange={set('month')}>
+                    {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Year</label>
+                  <select className="form-control" value={form.year} onChange={set('year')}>
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ gap:7 }}>
+                {loading
+                  ? <><span className="spinner" style={{ width:15, height:15, borderWidth:2 }} />Saving…</>
+                  : budget ? 'Update Budget' : 'Create Budget'
+                }
+              </button>
+            </div>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Expense category *</label>
-              <select className={`form-control ${errors.categoryId ? 'error' : ''}`}
-                value={form.categoryId} onChange={set('categoryId')}>
-                <option value="">Select a category</option>
-                {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              {errors.categoryId && <div className="form-error">{errors.categoryId}</div>}
-              <div className="form-hint">Only expense categories can have budgets</div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Budget amount (₹) *</label>
-              <input type="number" className={`form-control ${errors.amount ? 'error' : ''}`}
-                placeholder="0.00" value={form.amount} onChange={set('amount')} min="0.01" step="0.01" />
-              {errors.amount && <div className="form-error">{errors.amount}</div>}
-            </div>
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Month</label>
-                <select className="form-control" value={form.month} onChange={set('month')}>
-                  {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Year</label>
-                <select className="form-control" value={form.year} onChange={set('year')}>
-                  {years.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ gap:7 }}>
-              {loading
-                ? <><span className="spinner" style={{ width:15, height:15, borderWidth:2 }} />Saving…</>
-                : budget ? 'Update Budget' : 'Create Budget'
-              }
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+      {showAddCat && (
+        <QuickAddCategoryModal
+          onClose={() => setShowAddCat(false)}
+          onCreated={handleCategoryCreated}
+        />
+      )}
+    </>
   );
 }
 
