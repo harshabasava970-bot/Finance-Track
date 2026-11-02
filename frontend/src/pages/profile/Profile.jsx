@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Mail, Calendar, Shield, Edit2, Save, X, Lock, ChevronRight, TrendingUp } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Edit2, Save, X, Lock, ChevronRight, Bell, Send } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { updateProfile } from '../../api/auth';
+import api from '../../api/axios';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -16,6 +17,9 @@ export default function Profile() {
   const initials = user?.fullName
     ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
+
+  const [testingEmail, setTestingEmail]     = useState(false);
+  const [triggeringAlerts, setTriggeringAlerts] = useState(false);
 
   const validate = () => {
     const e = {};
@@ -152,6 +156,44 @@ export default function Profile() {
             </div>
             <ChevronRight size={16} color="var(--cream-300)" />
           </Link>
+        </div>
+      </div>
+
+      {/* Email Notifications card */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header">
+          <div>
+            <div className="section-title">Email Notifications</div>
+            <div className="section-subtitle">Test and trigger budget alert emails</div>
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--cream-100)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--charcoal-700)' }}>Send Test Email</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--cream-500)' }}>Verify your email notifications are working</div>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={testEmail} disabled={testingEmail} style={{ gap: 6 }}>
+                {testingEmail
+                  ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />Sending…</>
+                  : <><Send size={13} />Send Test</>}
+              </button>
+            </div>
+          </div>
+          <div style={{ padding: '16px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--charcoal-700)' }}>Re-trigger Budget Alerts</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--cream-500)' }}>Resend 90% / 100% alerts for current month budgets</div>
+              </div>
+              <button className="btn btn-outline-primary btn-sm" onClick={triggerAlerts} disabled={triggeringAlerts} style={{ gap: 6 }}>
+                {triggeringAlerts
+                  ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />Checking…</>
+                  : <><Bell size={13} />Trigger Alerts</>}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

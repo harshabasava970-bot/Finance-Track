@@ -38,6 +38,7 @@ app.use('/api/budgets', require('./routes/budgets'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/test', require('./routes/test'));
 
 // ── 404 ──
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
