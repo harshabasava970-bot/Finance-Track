@@ -9,17 +9,16 @@ import toast from 'react-hot-toast';
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
-  const [form, setForm]       = useState({ fullName: user?.fullName || '' });
-  const [errors, setErrors]   = useState({});
-  const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [form, setForm]                     = useState({ fullName: user?.fullName || '' });
+  const [errors, setErrors]                 = useState({});
+  const [loading, setLoading]               = useState(false);
+  const [editing, setEditing]               = useState(false);
+  const [testingEmail, setTestingEmail]     = useState(false);
+  const [triggeringAlerts, setTriggeringAlerts] = useState(false);
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
-
-  const [testingEmail, setTestingEmail]     = useState(false);
-  const [triggeringAlerts, setTriggeringAlerts] = useState(false);
 
   const validate = () => {
     const e = {};
@@ -46,6 +45,26 @@ export default function Profile() {
     setEditing(false);
     setForm({ fullName: user?.fullName || '' });
     setErrors({});
+  };
+
+  const testEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await api.post('/api/test/email');
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.message || getErrorMessage(err));
+    } finally { setTestingEmail(false); }
+  };
+
+  const triggerAlerts = async () => {
+    setTriggeringAlerts(true);
+    try {
+      const res = await api.post('/api/test/trigger-alerts');
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally { setTriggeringAlerts(false); }
   };
 
   return (
