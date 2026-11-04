@@ -2,6 +2,7 @@ const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
 const Category = require('../models/Category');
 const { success, error } = require('../utils/apiResponse');
+const { checkAndSendBudgetAlerts } = require('../services/budgetAlertService');
 
 const calcSpent = async (userId, categoryId, month, year) => {
   const res = await Transaction.aggregate([
@@ -45,6 +46,8 @@ exports.createBudget = async (req, res, next) => {
     if (exists) return error(res, 'Budget for this category and period already exists', 400);
     const b = await Budget.create({ user: req.user._id, category: categoryId, amount: parseFloat(amount), month: parseInt(month), year: parseInt(year) });
     await b.populate('category', 'name type');
+    // Check alerts immediately — existing transactions may already exceed this new budget
+    checkAndSendBudgetAlerts(req.user._id).catch(() => {});
     return success(res, await formatBudget(b, req.user._id), 'Budget created', 201);
   } catch (err) { next(err); }
 };
@@ -58,6 +61,8 @@ exports.updateBudget = async (req, res, next) => {
     if (month !== undefined) b.month = parseInt(month);
     if (year !== undefined) b.year = parseInt(year);
     await b.save();
+    // Re-check alerts when budget amount changes
+    checkAndSendBudgetAlerts(req.user._id).catch(() => {});
     return success(res, await formatBudget(b, req.user._id));
   } catch (err) { next(err); }
 };
