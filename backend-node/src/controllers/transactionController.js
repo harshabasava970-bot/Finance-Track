@@ -67,8 +67,12 @@ exports.createTransaction = async (req, res, next) => {
     });
     await tx.populate('category', 'name type');
 
-    // Fire budget alerts asynchronously — log errors instead of swallowing them
-    checkAndSendBudgetAlerts(req.user._id).catch(err => console.error('[TX CREATE] Alert error:', err.message));
+    // Small delay to ensure transaction is fully written before alert check
+    const userId = req.user._id;
+    setTimeout(() => {
+      checkAndSendBudgetAlerts(userId)
+        .catch(err => console.error('[TX CREATE] Alert error:', err.message));
+    }, 500);
 
     return success(res, formatTx(tx), 'Transaction created', 201);
   } catch (err) { next(err); }
@@ -92,7 +96,11 @@ exports.updateTransaction = async (req, res, next) => {
     if (transactionDate) tx.transactionDate = new Date(transactionDate);
     await tx.save();
     await tx.populate('category', 'name type');
-    checkAndSendBudgetAlerts(req.user._id).catch(err => console.error('[TX UPDATE] Alert error:', err.message));
+    const userId2 = req.user._id;
+    setTimeout(() => {
+      checkAndSendBudgetAlerts(userId2)
+        .catch(err => console.error('[TX UPDATE] Alert error:', err.message));
+    }, 500);
     return success(res, formatTx(tx));
   } catch (err) { next(err); }
 };

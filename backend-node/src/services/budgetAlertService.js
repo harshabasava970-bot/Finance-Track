@@ -129,7 +129,7 @@ const checkAndSendBudgetAlerts = async (userId) => {
                 status: result.success ? 'sent' : 'failed',
               }
             },
-            { upsert: true }
+            { upsert: true, new: true, setDefaultsOnInsert: true }
           );
 
           if (result.success) {
@@ -168,7 +168,7 @@ const checkAndSendBudgetAlerts = async (userId) => {
                 status: result.success ? 'sent' : 'failed',
               }
             },
-            { upsert: true }
+            { upsert: true, new: true, setDefaultsOnInsert: true }
           );
 
           if (result.success) {
