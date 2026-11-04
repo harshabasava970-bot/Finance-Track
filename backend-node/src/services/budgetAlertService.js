@@ -112,11 +112,13 @@ const checkAndSendBudgetAlerts = async (userId) => {
         if (pct < threshold) continue;
 
         // Already sent this threshold for this budget this month?
+        // Also retry if previous attempt failed (SMTP was not configured then)
         const alreadySent = await BudgetNotification.findOne({
           budget: budget._id,
           threshold,
           month,
           year,
+          status: 'sent',  // only skip if successfully sent before
         });
         if (alreadySent) continue;
 
@@ -131,19 +133,15 @@ const checkAndSendBudgetAlerts = async (userId) => {
 
         const result = await sendEmail({ to: user.email, subject, html, text });
 
-        // Record notification (even if failed — so we don't retry endlessly)
+        // Record notification — upsert so failed attempts get updated on retry
         try {
-          await BudgetNotification.create({
-            user:     userId,
-            budget:   budget._id,
-            category: budget.category._id,
-            month,
-            year,
-            threshold,
-            status: result.success ? 'sent' : 'failed',
-          });
+          await BudgetNotification.findOneAndUpdate(
+            { budget: budget._id, threshold, month, year },
+            { user: userId, category: budget.category._id, sentAt: new Date(), status: result.success ? 'sent' : 'failed' },
+            { upsert: true, new: true }
+          );
         } catch (dupErr) {
-          // Unique constraint hit — already exists, skip silently
+          // ignore
         }
 
         if (result.success) {

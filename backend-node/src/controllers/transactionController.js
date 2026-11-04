@@ -67,8 +67,8 @@ exports.createTransaction = async (req, res, next) => {
     });
     await tx.populate('category', 'name type');
 
-    // Fire budget alerts asynchronously
-    checkAndSendBudgetAlerts(req.user._id).catch(() => {});
+    // Fire budget alerts asynchronously — log errors instead of swallowing them
+    checkAndSendBudgetAlerts(req.user._id).catch(err => console.error('[TX CREATE] Alert error:', err.message));
 
     return success(res, formatTx(tx), 'Transaction created', 201);
   } catch (err) { next(err); }
@@ -92,7 +92,7 @@ exports.updateTransaction = async (req, res, next) => {
     if (transactionDate) tx.transactionDate = new Date(transactionDate);
     await tx.save();
     await tx.populate('category', 'name type');
-    checkAndSendBudgetAlerts(req.user._id).catch(() => {});
+    checkAndSendBudgetAlerts(req.user._id).catch(err => console.error('[TX UPDATE] Alert error:', err.message));
     return success(res, formatTx(tx));
   } catch (err) { next(err); }
 };
