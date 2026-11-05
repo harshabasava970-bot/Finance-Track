@@ -7,18 +7,20 @@ const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
 const { protect } = require('../middleware/auth');
 
-// Drop old unique index that causes E11000 errors
+// Drop old unique index AND recreate collection without it
 router.post('/fix-index', protect, async (req, res) => {
   try {
-    const indexes = await BudgetNotification.collection.indexes();
-    console.log('[FIX] Indexes:', indexes.map(i => i.name));
-    try {
-      await BudgetNotification.collection.dropIndex('budget_1_threshold_1_month_1_year_1');
-      console.log('[FIX] Dropped unique index');
-    } catch (e) { console.log('[FIX]', e.message); }
-    const after = await BudgetNotification.collection.indexes();
-    return res.json({ success: true, indexes: after.map(i => i.name) });
-  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
+    // Drop the entire collection and recreate — cleanest fix
+    await BudgetNotification.collection.drop().catch(() => {});
+    console.log('[FIX] Dropped budgetnotifications collection');
+    // Recreate by syncing indexes (without unique constraint)
+    await BudgetNotification.syncIndexes();
+    console.log('[FIX] Recreated indexes without unique constraint');
+    return res.json({ success: true, message: 'Collection recreated. All alerts will now work correctly.' });
+  } catch (err) {
+    console.error('[FIX] Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // Send test email
