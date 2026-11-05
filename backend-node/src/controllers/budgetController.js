@@ -46,8 +46,13 @@ exports.createBudget = async (req, res, next) => {
     if (exists) return error(res, 'Budget for this category and period already exists', 400);
     const b = await Budget.create({ user: req.user._id, category: categoryId, amount: parseFloat(amount), month: parseInt(month), year: parseInt(year) });
     await b.populate('category', 'name type');
-    // Check alerts immediately — existing transactions may already exceed this new budget
-    checkAndSendBudgetAlerts(req.user._id).catch(() => {});
+    const uid = req.user._id;
+    // Delay 1s to ensure budget is fully saved, then check existing transactions
+    setTimeout(() => {
+      checkAndSendBudgetAlerts(uid)
+        .then(() => console.log('[BUDGET CREATE] Alert check complete'))
+        .catch(err => console.error('[BUDGET CREATE] Alert error:', err.message));
+    }, 1000);
     return success(res, await formatBudget(b, req.user._id), 'Budget created', 201);
   } catch (err) { next(err); }
 };

@@ -9,6 +9,7 @@ const budgetNotificationSchema = new mongoose.Schema({
   threshold: { type: Number, enum: [90, 100], required: true },
   sentAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['sent', 'failed'], default: 'sent' },
+  spentAmount: { type: Number, default: 0 }, // tracks spent at time of last alert
 }, { timestamps: true });
 
 // Prevent duplicate alerts for same budget+threshold in same month/year
