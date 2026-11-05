@@ -67,14 +67,16 @@ exports.createTransaction = async (req, res, next) => {
     });
     await tx.populate('category', 'name type');
 
-    // Small delay to ensure transaction is fully written before alert check
-    const userId = req.user._id;
-    setTimeout(() => {
-      checkAndSendBudgetAlerts(userId)
-        .catch(err => console.error('[TX CREATE] Alert error:', err.message));
-    }, 500);
+    // Respond first, then check alerts (don't block the response)
+    const responseData = formatTx(tx);
+    res.status(201).json({ success: true, message: 'Transaction created', data: responseData });
 
-    return success(res, formatTx(tx), 'Transaction created', 201);
+    // Run alert check AFTER responding - no setTimeout needed
+    try {
+      await checkAndSendBudgetAlerts(req.user._id);
+    } catch (alertErr) {
+      console.error('[TX CREATE] Alert error:', alertErr.message);
+    }
   } catch (err) { next(err); }
 };
 
@@ -96,12 +98,13 @@ exports.updateTransaction = async (req, res, next) => {
     if (transactionDate) tx.transactionDate = new Date(transactionDate);
     await tx.save();
     await tx.populate('category', 'name type');
-    const userId2 = req.user._id;
-    setTimeout(() => {
-      checkAndSendBudgetAlerts(userId2)
-        .catch(err => console.error('[TX UPDATE] Alert error:', err.message));
-    }, 500);
-    return success(res, formatTx(tx));
+    const responseData2 = formatTx(tx);
+    res.status(200).json({ success: true, message: 'Success', data: responseData2 });
+    try {
+      await checkAndSendBudgetAlerts(req.user._id);
+    } catch (alertErr) {
+      console.error('[TX UPDATE] Alert error:', alertErr.message);
+    }
   } catch (err) { next(err); }
 };
 
