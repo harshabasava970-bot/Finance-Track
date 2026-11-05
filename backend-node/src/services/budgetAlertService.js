@@ -86,17 +86,19 @@ const checkAndSendBudgetAlerts = async (userId) => {
     console.log(`[ALERT] Checking ${budgets.length} budget(s) for user ${user.email} (${month}/${year})`);
 
     for (const budget of budgets) {
-      const catId = new mongoose.Types.ObjectId(String(budget.category._id));
+      const catId     = new mongoose.Types.ObjectId(String(budget.category._id));
+      const bMonth    = budget.month;  // use budget's month, not server's now
+      const bYear     = budget.year;   // use budget's year, not server's now
 
-      // Get actual spending for this category this month
+      // Get actual spending for this category in the BUDGET's month/year
       const agg = await Transaction.aggregate([
         { $match: {
           user: uid,
           category: catId,
           type: 'EXPENSE',
           transactionDate: {
-            $gte: new Date(year, month - 1, 1),
-            $lte: new Date(year, month, 0, 23, 59, 59, 999),
+            $gte: new Date(bYear, bMonth - 1, 1, 0, 0, 0, 0),
+            $lte: new Date(bYear, bMonth, 0, 23, 59, 59, 999),
           },
         }},
         { $group: { _id: null, total: { $sum: '$amount' } } },
@@ -105,12 +107,12 @@ const checkAndSendBudgetAlerts = async (userId) => {
       const spent = agg[0]?.total || 0;
       const pct   = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
-      console.log(`[ALERT] ${budget.category.name}: budget=₹${budget.amount} spent=₹${spent} pct=${pct.toFixed(1)}%`);
+      console.log(`[ALERT] ${budget.category.name} (${bMonth}/${bYear}): budget=₹${budget.amount} spent=₹${spent} pct=${pct.toFixed(1)}%`);
 
       // ── 90% CHECK ──────────────────────────────────────────────────────────
       if (pct >= 90) {
         const existing90 = await BudgetNotification.findOne({
-          budget: budget._id, threshold: 90, month, year, status: 'sent',
+          budget: budget._id, threshold: 90, month: bMonth, year: bYear, status: 'sent',
         });
 
         if (!existing90) {
@@ -118,7 +120,7 @@ const checkAndSendBudgetAlerts = async (userId) => {
           const email = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 90);
           const result = await sendEmail({ to: user.email, ...email });
           await BudgetNotification.findOneAndUpdate(
-            { budget: budget._id, threshold: 90, month, year },
+            { budget: budget._id, threshold: 90, month: bMonth, year: bYear },
             { $set: { user: uid, category: catId, sentAt: new Date(), status: result.success ? 'sent' : 'failed', spentAmount: spent } },
             { upsert: true }
           );
@@ -129,14 +131,11 @@ const checkAndSendBudgetAlerts = async (userId) => {
       }
 
       // ── 100% CHECK ─────────────────────────────────────────────────────────
-      // Rule: send when first reaches 100%, then resend every time user
-      // adds another transaction that pushes spending even higher.
       if (pct >= 100) {
         const last100 = await BudgetNotification.findOne({
-          budget: budget._id, threshold: 100, month, year, status: 'sent',
+          budget: budget._id, threshold: 100, month: bMonth, year: bYear, status: 'sent',
         });
 
-        // Send if: never sent before, OR user spent MORE since last 100% alert
         const shouldSend = !last100 || (last100.spentAmount != null && spent > last100.spentAmount);
 
         if (shouldSend) {
@@ -145,9 +144,8 @@ const checkAndSendBudgetAlerts = async (userId) => {
           const result = await sendEmail({ to: user.email, ...email });
 
           if (result.success) {
-            // Update/insert record with latest spent amount
             await BudgetNotification.findOneAndUpdate(
-              { budget: budget._id, threshold: 100, month, year },
+              { budget: budget._id, threshold: 100, month: bMonth, year: bYear },
               { $set: { user: uid, category: catId, sentAt: new Date(), status: 'sent', spentAmount: spent } },
               { upsert: true }
             );
@@ -155,7 +153,7 @@ const checkAndSendBudgetAlerts = async (userId) => {
           } else {
             console.error(`[ALERT] 100% email FAILED: ${result.reason}`);
             await BudgetNotification.findOneAndUpdate(
-              { budget: budget._id, threshold: 100, month, year },
+              { budget: budget._id, threshold: 100, month: bMonth, year: bYear },
               { $set: { user: uid, category: catId, sentAt: new Date(), status: 'failed', spentAmount: spent } },
               { upsert: true }
             );
