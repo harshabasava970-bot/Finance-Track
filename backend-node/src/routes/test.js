@@ -7,73 +7,69 @@ const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
 const { protect } = require('../middleware/auth');
 
+// Drop old unique index that causes E11000 errors
+router.post('/fix-index', protect, async (req, res) => {
+  try {
+    const indexes = await BudgetNotification.collection.indexes();
+    console.log('[FIX] Indexes:', indexes.map(i => i.name));
+    try {
+      await BudgetNotification.collection.dropIndex('budget_1_threshold_1_month_1_year_1');
+      console.log('[FIX] Dropped unique index');
+    } catch (e) { console.log('[FIX]', e.message); }
+    const after = await BudgetNotification.collection.indexes();
+    return res.json({ success: true, indexes: after.map(i => i.name) });
+  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
 // Send test email
 router.post('/email', protect, async (req, res) => {
-  const { SMTP_FROM, BREVO_API_KEY } = process.env;
-  if (!BREVO_API_KEY) {
-    return res.status(500).json({ success: false, message: 'BREVO_API_KEY not configured in Render environment' });
-  }
+  if (!process.env.BREVO_API_KEY) return res.status(500).json({ success: false, message: 'BREVO_API_KEY not set' });
   const result = await sendEmail({
-    to: req.user.email,
-    subject: 'FinanceTrack – Email Test',
-    html: `<div style="font-family:Arial;padding:24px;"><h2 style="color:#245C45;">Email Test</h2><p>Hello <strong>${req.user.fullName}</strong>, your emails are working!</p></div>`,
-    text: `Hello ${req.user.fullName}, your FinanceTrack emails are working!`,
+    to: req.user.email, subject: 'FinanceTrack – Email Test',
+    html: `<p>Hello <strong>${req.user.fullName}</strong>, emails are working!</p>`,
+    text: `Hello ${req.user.fullName}, emails are working!`,
   });
-  if (result.success) return res.json({ success: true, message: `Test email sent to ${req.user.email}` });
-  return res.status(500).json({ success: false, message: `Failed: ${result.reason}` });
+  if (result.success) return res.json({ success: true, message: `Sent to ${req.user.email}` });
+  return res.status(500).json({ success: false, message: result.reason });
 });
 
-// Re-trigger budget alerts (clears old records so they resend)
+// Re-trigger alerts (clears records and resends)
 router.post('/trigger-alerts', protect, async (req, res) => {
   try {
-    const now   = new Date();
-    const month = now.getMonth() + 1;
-    const year  = now.getFullYear();
-    const deleted = await BudgetNotification.deleteMany({ user: req.user._id, month, year });
-    console.log(`[TRIGGER] Cleared ${deleted.deletedCount} notifications for ${req.user.email}`);
+    const now = new Date();
+    const deleted = await BudgetNotification.deleteMany({ user: req.user._id, month: now.getMonth()+1, year: now.getFullYear() });
+    console.log(`[TRIGGER] Cleared ${deleted.deletedCount} notifications`);
     await checkAndSendBudgetAlerts(req.user._id);
-    return res.json({ success: true, message: 'Budget alerts re-triggered. Check your inbox.' });
-  } catch (err) {
-    console.error('[TRIGGER] Error:', err.message);
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    return res.json({ success: true, message: 'Alerts triggered. Check inbox.' });
+  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
-// Debug — show current budget state and notifications
+// Debug alert state
 router.get('/debug-alerts', protect, async (req, res) => {
   try {
-    const now   = new Date();
+    const now = new Date();
     const month = now.getMonth() + 1;
     const year  = now.getFullYear();
     const uid   = new mongoose.Types.ObjectId(String(req.user._id));
-
     const budgets = await Budget.find({ user: uid, month, year }).populate('category', 'name');
     const notifications = await BudgetNotification.find({ user: uid, month, year });
-
     const result = [];
     for (const b of budgets) {
       const agg = await Transaction.aggregate([
-        { $match: {
-          user: uid,
-          category: new mongoose.Types.ObjectId(String(b.category._id)),
-          type: 'EXPENSE',
-          transactionDate: { $gte: new Date(year, month-1, 1), $lte: new Date(year, month, 0, 23, 59, 59) },
-        }},
+        { $match: { user: uid, category: new mongoose.Types.ObjectId(String(b.category._id)), type: 'EXPENSE',
+          transactionDate: { $gte: new Date(year, month-1, 1), $lte: new Date(year, month, 0, 23, 59, 59) } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]);
       const spent = agg[0]?.total || 0;
-      const pct   = (spent / b.amount) * 100;
-      const notifs = notifications.filter(n => n.budget.toString() === b._id.toString());
       result.push({
-        category: b.category.name,
-        budget: b.amount, spent, pct: pct.toFixed(2) + '%',
-        notifications: notifs.map(n => ({ threshold: n.threshold, status: n.status, sentAt: n.sentAt, spentAmount: n.spentAmount })),
+        category: b.category.name, budget: b.amount, spent,
+        pct: ((spent/b.amount)*100).toFixed(1)+'%',
+        notifications: notifications.filter(n => n.budget.toString()===b._id.toString())
+          .map(n => ({ threshold: n.threshold, status: n.status, sentAt: n.sentAt, spentAmount: n.spentAmount })),
       });
     }
     return res.json({ success: true, data: result });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
+  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 module.exports = router;

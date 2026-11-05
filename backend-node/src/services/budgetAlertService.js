@@ -95,12 +95,22 @@ const checkAndSendBudgetAlerts = async (userId) => {
           console.log(`[ALERT] Sending 90% for ${budget.category.name}`);
           const eml = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 90);
           const result = await sendEmail({ to: user.email, subject: eml.subject, html: eml.html, text: eml.text });
-          // Always create a new record (no upsert, no unique constraint issues)
-          await BudgetNotification.create({
-            user: uid, budget: budget._id, category: catId,
-            month: bMonth, year: bYear, threshold: 90,
-            status: result.success ? 'sent' : 'failed', spentAmount: spent,
-          });
+          // Always create a new record - handle duplicate key gracefully
+          try {
+            await BudgetNotification.create({
+              user: uid, budget: budget._id, category: catId,
+              month: bMonth, year: bYear, threshold: 90,
+              status: result.success ? 'sent' : 'failed', spentAmount: spent,
+            });
+          } catch (dbErr) {
+            if (dbErr.code === 11000) {
+              // Unique index still exists in DB - update the existing record instead
+              await BudgetNotification.findOneAndUpdate(
+                { budget: budget._id, threshold: 90, month: bMonth, year: bYear },
+                { $set: { status: result.success ? 'sent' : 'failed', spentAmount: spent, sentAt: new Date() } }
+              );
+            }
+          }
           console.log(`[ALERT] 90% → ${result.success ? 'SENT' : 'FAILED ('+result.reason+')'}`);
         } else {
           console.log(`[ALERT] 90% already sent for ${budget.category.name}, skip`);
@@ -125,11 +135,21 @@ const checkAndSendBudgetAlerts = async (userId) => {
           console.log(`[ALERT] Sending 100% for ${budget.category.name} (₹${spent})`);
           const eml = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 100);
           const result = await sendEmail({ to: user.email, subject: eml.subject, html: eml.html, text: eml.text });
-          await BudgetNotification.create({
-            user: uid, budget: budget._id, category: catId,
-            month: bMonth, year: bYear, threshold: 100,
-            status: result.success ? 'sent' : 'failed', spentAmount: spent,
-          });
+          try {
+            await BudgetNotification.create({
+              user: uid, budget: budget._id, category: catId,
+              month: bMonth, year: bYear, threshold: 100,
+              status: result.success ? 'sent' : 'failed', spentAmount: spent,
+            });
+          } catch (dbErr) {
+            if (dbErr.code === 11000) {
+              // Unique index still in DB — update existing record with new spent amount
+              await BudgetNotification.findOneAndUpdate(
+                { budget: budget._id, threshold: 100, month: bMonth, year: bYear },
+                { $set: { status: result.success ? 'sent' : 'failed', spentAmount: spent, sentAt: new Date() } }
+              );
+            }
+          }
           console.log(`[ALERT] 100% → ${result.success ? 'SENT' : 'FAILED ('+result.reason+')'}`);
         } else {
           console.log(`[ALERT] 100% skipped — spent hasn't increased since last alert`);
