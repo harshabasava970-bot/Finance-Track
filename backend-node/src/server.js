@@ -51,6 +51,19 @@ const PORT = process.env.PORT || 5000;
 
 connectDB().then(async () => {
   await seedData();
+
+  // Fix: drop old unique index on budgetnotifications if it exists
+  try {
+    const mongoose = require('mongoose');
+    const BudgetNotification = require('./models/BudgetNotification');
+    // Wait for connection to be ready
+    if (mongoose.connection.readyState === 1) {
+      await BudgetNotification.collection.dropIndex('budget_1_threshold_1_month_1_year_1').catch(() => {});
+      await BudgetNotification.syncIndexes().catch(() => {});
+      console.log('BudgetNotification indexes synced');
+    }
+  } catch (e) { /* index may not exist, that is fine */ }
+
   app.listen(PORT, () => console.log(`FinanceTrack server running on port ${PORT}`));
 });
 
