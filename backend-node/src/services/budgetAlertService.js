@@ -8,11 +8,6 @@ const { sendEmail } = require('../config/email');
 const formatINR = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(n);
 
-/**
- * Build email HTML/text for a given threshold (90 or 100).
- * threshold=90  → "Budget Warning (90%)"
- * threshold=100 → "Budget Limit Reached"
- */
 const buildEmail = (userName, categoryName, budgetAmount, spentAmount, threshold) => {
   const remaining   = Math.max(0, budgetAmount - spentAmount);
   const is100       = threshold === 100;
@@ -38,7 +33,7 @@ const buildEmail = (userName, categoryName, budgetAmount, spentAmount, threshold
     <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
       <tr style="background:#f9f9f9;"><td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Monthly Budget</td><td style="padding:12px 16px;border:1px solid #eee;color:#245C45;font-weight:700;">${formatINR(budgetAmount)}</td></tr>
       <tr><td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Amount Spent</td><td style="padding:12px 16px;border:1px solid #eee;color:${headerColor};font-weight:700;">${formatINR(spentAmount)}</td></tr>
-      <tr style="background:#f9f9f9;"><td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Remaining Budget</td><td style="padding:12px 16px;border:1px solid #eee;font-weight:700;color:#333;">${formatINR(remaining)}</td></tr>
+      <tr style="background:#f9f9f9;"><td style="padding:12px 16px;border:1px solid #eee;font-weight:600;color:#333;">Remaining Budget</td><td style="padding:12px 16px;border:1px solid #eee;font-weight:700;">${formatINR(remaining)}</td></tr>
     </table>
     <p style="color:${is100 ? '#7a2c2b' : '#7a4a30'};font-size:14px;background:${is100 ? '#FBF0F0' : '#FAF0EB'};padding:16px;border-radius:8px;margin:0 0 24px;">${footerMsg}</p>
     <hr style="border:none;border-top:1px solid #eee;margin:0 0 24px;">
@@ -46,32 +41,11 @@ const buildEmail = (userName, categoryName, budgetAmount, spentAmount, threshold
   </div>
 </div></body></html>`;
 
-  const text = `Hello ${userName},\n\n${is100
-    ? `Your spending in ${categoryName} has reached or exceeded your monthly budget.`
-    : `Your spending in ${categoryName} has reached 90% of your monthly budget.`
-  }\n\nMonthly Budget: ${formatINR(budgetAmount)}\nAmount Spent: ${formatINR(spentAmount)}\nRemaining: ${formatINR(remaining)}\n\n${footerMsg}\n\nThank you,\nFinanceTrack Team`;
+  const text = `Hello ${userName},\n\n${is100 ? `Your spending in ${categoryName} has reached or exceeded your monthly budget.` : `Your spending in ${categoryName} has reached 90% of your monthly budget.`}\n\nMonthly Budget: ${formatINR(budgetAmount)}\nAmount Spent: ${formatINR(spentAmount)}\nRemaining: ${formatINR(remaining)}\n\n${footerMsg}\n\nThank you,\nFinanceTrack Team`;
 
   return { subject, html, text };
 };
 
-/**
- * NOTIFICATION RULES:
- *
- * 90% alert:
- *   - Send ONCE per budget per month when spending first crosses 90%
- *   - Do NOT resend if already sent this month
- *
- * 100% alert:
- *   - Send when spending first reaches/exceeds 100%
- *   - RESEND every time a NEW transaction pushes spending higher (user keeps spending after limit)
- *   - Track by storing the "spentAtLastAlert" — if spent is higher now, resend
- *
- * This means:
- *   Budget ₹4000, spent ₹3600 → 90% email ✅
- *   Spent ₹4000 → 100% email ✅
- *   Spent ₹4500 → 100% email again ✅ (new transaction exceeded again)
- *   Spent ₹4600 → 100% email again ✅
- */
 const checkAndSendBudgetAlerts = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -82,22 +56,23 @@ const checkAndSendBudgetAlerts = async (userId) => {
     const year  = now.getFullYear();
     const uid   = new mongoose.Types.ObjectId(String(userId));
 
+    // Only check budgets for current month
     const budgets = await Budget.find({ user: uid, month, year }).populate('category', 'name type');
-    console.log(`[ALERT] Checking ${budgets.length} budget(s) for user ${user.email} (${month}/${year})`);
+    console.log(`[ALERT] ${user.email} — ${budgets.length} budget(s) for ${month}/${year}`);
 
     for (const budget of budgets) {
-      const catId     = new mongoose.Types.ObjectId(String(budget.category._id));
-      const bMonth    = budget.month;  // use budget's month, not server's now
-      const bYear     = budget.year;   // use budget's year, not server's now
+      const catId  = new mongoose.Types.ObjectId(String(budget.category._id));
+      const bMonth = budget.month;
+      const bYear  = budget.year;
 
-      // Get actual spending for this category in the BUDGET's month/year
+      // Calculate total spent for this category this month
       const agg = await Transaction.aggregate([
         { $match: {
-          user: uid,
+          user:     uid,
           category: catId,
-          type: 'EXPENSE',
+          type:     'EXPENSE',
           transactionDate: {
-            $gte: new Date(bYear, bMonth - 1, 1, 0, 0, 0, 0),
+            $gte: new Date(bYear, bMonth - 1, 1),
             $lte: new Date(bYear, bMonth, 0, 23, 59, 59, 999),
           },
         }},
@@ -107,64 +82,62 @@ const checkAndSendBudgetAlerts = async (userId) => {
       const spent = agg[0]?.total || 0;
       const pct   = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
-      console.log(`[ALERT] ${budget.category.name} (${bMonth}/${bYear}): budget=₹${budget.amount} spent=₹${spent} pct=${pct.toFixed(1)}%`);
+      console.log(`[ALERT] ${budget.category.name}: ₹${spent}/₹${budget.amount} = ${pct.toFixed(1)}%`);
 
-      // ── 90% CHECK ──────────────────────────────────────────────────────────
+      // ── 90% ALERT — send once per month ──────────────────────────────────
       if (pct >= 90) {
-        const existing90 = await BudgetNotification.findOne({
+        // Check if we already sent a SUCCESSFUL 90% alert this month
+        const sent90 = await BudgetNotification.findOne({
           budget: budget._id, threshold: 90, month: bMonth, year: bYear, status: 'sent',
         });
 
-        if (!existing90) {
-          console.log(`[ALERT] Firing 90% alert for ${budget.category.name}`);
-          const email = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 90);
-          const result = await sendEmail({ to: user.email, ...email });
-          await BudgetNotification.findOneAndUpdate(
-            { budget: budget._id, threshold: 90, month: bMonth, year: bYear },
-            { $set: { user: uid, category: catId, sentAt: new Date(), status: result.success ? 'sent' : 'failed', spentAmount: spent } },
-            { upsert: true }
-          );
-          console.log(`[ALERT] 90% email ${result.success ? 'SENT' : 'FAILED'} → ${user.email}`);
+        if (!sent90) {
+          console.log(`[ALERT] Sending 90% for ${budget.category.name}`);
+          const eml = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 90);
+          const result = await sendEmail({ to: user.email, subject: eml.subject, html: eml.html, text: eml.text });
+          // Always create a new record (no upsert, no unique constraint issues)
+          await BudgetNotification.create({
+            user: uid, budget: budget._id, category: catId,
+            month: bMonth, year: bYear, threshold: 90,
+            status: result.success ? 'sent' : 'failed', spentAmount: spent,
+          });
+          console.log(`[ALERT] 90% → ${result.success ? 'SENT' : 'FAILED ('+result.reason+')'}`);
         } else {
-          console.log(`[ALERT] 90% already sent for ${budget.category.name}`);
+          console.log(`[ALERT] 90% already sent for ${budget.category.name}, skip`);
         }
       }
 
-      // ── 100% CHECK ─────────────────────────────────────────────────────────
+      // ── 100% ALERT — send every time user spends MORE after limit ────────
       if (pct >= 100) {
-        const last100 = await BudgetNotification.findOne({
-          budget: budget._id, threshold: 100, month: bMonth, year: bYear, status: 'sent',
-        });
+        // Find last SUCCESSFUL 100% alert
+        const last100 = await BudgetNotification.findOne(
+          { budget: budget._id, threshold: 100, month: bMonth, year: bYear, status: 'sent' },
+          {},
+          { sort: { sentAt: -1 } }  // get the most recent one
+        );
 
-        const shouldSend = !last100 || (last100.spentAmount != null && spent > last100.spentAmount);
+        const lastSpent = last100?.spentAmount || 0;
+        const shouldSend = spent > lastSpent; // send if spent increased since last alert
+
+        console.log(`[ALERT] 100% check: spent=₹${spent}, lastAlertSpent=₹${lastSpent}, shouldSend=${shouldSend}`);
 
         if (shouldSend) {
-          console.log(`[ALERT] Firing 100% alert for ${budget.category.name} (spent=₹${spent})`);
-          const email = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 100);
-          const result = await sendEmail({ to: user.email, ...email });
-
-          if (result.success) {
-            await BudgetNotification.findOneAndUpdate(
-              { budget: budget._id, threshold: 100, month: bMonth, year: bYear },
-              { $set: { user: uid, category: catId, sentAt: new Date(), status: 'sent', spentAmount: spent } },
-              { upsert: true }
-            );
-            console.log(`[ALERT] 100% email SENT → ${user.email} (spent=₹${spent})`);
-          } else {
-            console.error(`[ALERT] 100% email FAILED: ${result.reason}`);
-            await BudgetNotification.findOneAndUpdate(
-              { budget: budget._id, threshold: 100, month: bMonth, year: bYear },
-              { $set: { user: uid, category: catId, sentAt: new Date(), status: 'failed', spentAmount: spent } },
-              { upsert: true }
-            );
-          }
+          console.log(`[ALERT] Sending 100% for ${budget.category.name} (₹${spent})`);
+          const eml = buildEmail(user.fullName, budget.category.name, budget.amount, spent, 100);
+          const result = await sendEmail({ to: user.email, subject: eml.subject, html: eml.html, text: eml.text });
+          await BudgetNotification.create({
+            user: uid, budget: budget._id, category: catId,
+            month: bMonth, year: bYear, threshold: 100,
+            status: result.success ? 'sent' : 'failed', spentAmount: spent,
+          });
+          console.log(`[ALERT] 100% → ${result.success ? 'SENT' : 'FAILED ('+result.reason+')'}`);
         } else {
-          console.log(`[ALERT] 100% already sent for ${budget.category.name} at same spend level`);
+          console.log(`[ALERT] 100% skipped — spent hasn't increased since last alert`);
         }
       }
     }
   } catch (err) {
-    console.error('[ALERT] Error:', err.message, err.stack);
+    console.error('[ALERT] FATAL ERROR:', err.message, err.stack);
   }
 };
 
